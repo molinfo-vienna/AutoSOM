@@ -3,7 +3,7 @@ import numpy as np
 
 from datetime import datetime
 from networkx.algorithms import isomorphism
-from rdkit.Chem import AllChem, Mol, rdFMCS
+from rdkit.Chem import Mol, rdFingerprintGenerator, rdFMCS
 from rdkit.DataStructs import TanimotoSimilarity
 
 
@@ -325,9 +325,10 @@ class SOMFinder:
 
             # Map the unmapped atoms in the substrate to the remaining atoms in the metabolite
             # based on the Tanimoto similarity of their Morgan fingerprints
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=1024)
             atom_based_fp_metabolite = [
-                AllChem.GetMorganFingerprintAsBitVect(
-                    self.metabolite, radius=2, nBits=1024, fromAtoms=[atom_m.GetIdx()]
+                mfpgen.GetFingerprint(
+                    self.metabolite, fromAtoms=[atom_m.GetIdx()]
                 )
                 for atom_m in self.metabolite.GetAtoms()
             ]
@@ -336,10 +337,8 @@ class SOMFinder:
             for atom_s in self.substrate.GetAtoms():
                 if atom_s.GetIdx() not in highlights_substrate:
                     # Calculate the Morgan fingerprint for the atom in the substrate
-                    atom_based_fp_substrate = AllChem.GetMorganFingerprintAsBitVect(
+                    atom_based_fp_substrate = mfpgen.GetFingerprint(
                         self.substrate,
-                        radius=2,
-                        nBits=1024,
                         fromAtoms=[atom_s.GetIdx()],
                     )
                     # Calculate the Tanimoto similarity between the atom in the substrate and all atoms in the metabolite
