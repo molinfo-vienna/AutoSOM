@@ -18,7 +18,7 @@ Activate the environment:
 
 Install soman package:
 
-`pip install -e`
+`pip install -e .`
 
 
 ### Usage
