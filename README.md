@@ -32,3 +32,8 @@ The `INPUT_PATH` is the path to your input data. The file format must be .csv. T
 The `OUTPUT_PATH` is the path where the output (annotated) data as well as the log file will be written.
 
 The `TYPE` indicates whether the input data contains SMILES of InChIs. Please choose between `smiles` and `inchi`.
+
+
+### Sandbox
+
+You can use the `sandbox` Jupyter Notebook to visualize your results. For this, you'll first need to install the `ipykernel` and `ipywidgets` packages with pip.
