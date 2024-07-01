@@ -10,7 +10,7 @@ Clone the repository and cd into the repository root:
 
 Create a conda environment with the required python version:
 
-`conda env create --name soman python=3.12.4`
+`conda env create --name soman python=3.11`
 
 Activate the environment:
 

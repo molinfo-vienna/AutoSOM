@@ -5,11 +5,13 @@ setup(
     version="1.0",
     author="Roxane Jacob",
     description="Annotates the Sites of Metabolism (SoMs) of substrate-metabolite pairs.",
-    python_requires="==3.12.4",
+    python_requires=">=3.11",
     packages=find_packages(),
     install_requires=[
         "networkx==3.3",
-        "rdkit==2024.03.3",
+        "numpy==2.0.0",
+        "pandas==2.2.2",
+        "rdkit==2024.3.1",
         "tqdm==4.66.4",
     ],
 )
