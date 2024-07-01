@@ -10,5 +10,6 @@ setup(
     install_requires=[
         "networkx==3.3",
         "rdkit==2024.03.3",
+        "tqdm==4.66.4",
     ],
 )

@@ -21,25 +21,6 @@ ALLOWED_ATOMS = {
 }
 
 
-def _find_h_soms(mol: Mol, soms: List[int]) -> int:
-    """
-    Checks if a molecule contains a SoM on a hydrogen atom.
-
-    Args:
-        mol (RDKit Mol): Molecule to check.
-
-    Returns:
-        int: 1 if the molecule contains a SoM on a hydrogen atom, 0 otherwise.
-    """
-
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() == 1:
-            for som in soms:
-                if atom.GetIdx() == som:
-                    return 1
-    return 0
-
-
 def _find_symmetry_groups(mol: Mol):
     """
     Args:
@@ -98,7 +79,6 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     (2) Discard compounds containing any chemical element other than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
     (3) Discard compounds with molecular mass above 1000 Da.
     (4) Discard compounds with fewer than 5 heavy atoms.
-    (5) Remove reactions where a hydrogen atom is labeled a SoM.
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
 
@@ -163,16 +143,6 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     )
     data_size = len(data)
 
-    # Filter out reactions where a hydrogen atom is labeled a SoM
-    data["som_on_h_flag"] = data.apply(
-        lambda x: _find_h_soms(x["substrate_mol"], x["soms"]), axis=1
-    )
-    data = data[data.som_on_h_flag == 0]
-    print(
-        f"SoM on hydrogen filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
-    )
-    data_size = len(data)
-
     # Clean up the DataFrame
     data = data.drop(
         columns=[
@@ -184,7 +154,6 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
             "metabolite_molecular_weight",
             "substrate_num_heavy_atoms",
             "metabolite_num_heavy_atoms",
-            "som_on_h_flag",
         ]
     )
 

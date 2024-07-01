@@ -331,7 +331,7 @@ class SOMFinder:
                 )
                 for atom_m in self.metabolite.GetAtoms()
             ]
-            already_matched_atom_indices = set(self.highlights_metabolite)
+            already_matched_atom_indices = set(highlights_metabolite)
 
             for atom_s in self.substrate.GetAtoms():
                 if atom_s.GetIdx() not in highlights_substrate:
