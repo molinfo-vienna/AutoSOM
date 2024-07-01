@@ -1,0 +1,6 @@
+setup.py
+soman.egg-info/PKG-INFO
+soman.egg-info/SOURCES.txt
+soman.egg-info/dependency_links.txt
+soman.egg-info/requires.txt
+soman.egg-info/top_level.txt
