@@ -2,6 +2,7 @@ import pandas as pd
 
 from collections import defaultdict
 from rdkit.Chem import Mol, MolToInchi, rdMolDescriptors
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from typing import List
 
 
@@ -58,6 +59,29 @@ def _set_allowed_elements_flag(mol: Mol) -> int:
         return 0
     else:
         return 1
+
+
+def _standardize_row(row: pd.Series) -> pd.Series:
+    """
+    Standardize a row of the DataFrame containing the substrate and metabolite molecules.
+
+    Args:
+        row (pd.Series): Row of the DataFrame containing the substrate and metabolite molecules.
+
+    Returns:
+        pd.Series: Standardized row of the DataFrame containing the substrate and metabolite molecules.
+    """
+    try:
+        row["substrate_mol"] = rdMolStandardize.Cleanup(row["substrate_mol"])
+        row["substrate_mol"] = rdMolStandardize.CanonicalTautomer(row["substrate_mol"])
+
+        row["metabolite_mol"] = rdMolStandardize.Cleanup(row["metabolite_mol"])
+        row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(row["metabolite_mol"])
+    except:
+        row["substrate_mol"] = None
+        row["metabolite_mol"] = None
+
+    return row
 
 
 def concat_lists(lst: List) -> List:
@@ -189,6 +213,28 @@ def filter_data(data: pd.DataFrame, n: int) -> pd.DataFrame:
     )
     data_size = len(data)
     data = data.reset_index(drop=True, inplace=False)
+    return data
+
+
+def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Standardize the data using the ChEMBL standardizer.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
+    
+    Returns:
+        pd.DataFrame: DataFrame containing the standardized substrate and metabolite molecules.
+    """
+    data_size = len(data)
+    
+    data = data.apply(_standardize_row, axis=1)
+    data = data.dropna(subset=["substrate_mol", "metabolite_mol"])
+
+    print(
+        f"Standardization removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+    )
+
     return data
 
 
