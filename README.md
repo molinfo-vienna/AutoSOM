@@ -23,7 +23,9 @@ Install soman package:
 
 ### Usage
 
-To annotate data, please run `python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE`.
+To annotate data, please run:
+
+`python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE`
 
 The `INPUT_PATH` is the path to your input data. The file format must be .csv. The first and second columns should contain either smiles or inchi of the substrate compounds and metabolites, respectively.
 
