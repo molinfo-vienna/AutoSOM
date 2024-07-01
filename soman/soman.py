@@ -327,9 +327,7 @@ class SOMFinder:
             # based on the Tanimoto similarity of their Morgan fingerprints
             mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=1024)
             atom_based_fp_metabolite = [
-                mfpgen.GetFingerprint(
-                    self.metabolite, fromAtoms=[atom_m.GetIdx()]
-                )
+                mfpgen.GetFingerprint(self.metabolite, fromAtoms=[atom_m.GetIdx()])
                 for atom_m in self.metabolite.GetAtoms()
             ]
             already_matched_atom_indices = set(highlights_metabolite)

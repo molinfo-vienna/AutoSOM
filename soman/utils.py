@@ -76,7 +76,9 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         row["substrate_mol"] = rdMolStandardize.CanonicalTautomer(row["substrate_mol"])
 
         row["metabolite_mol"] = rdMolStandardize.Cleanup(row["metabolite_mol"])
-        row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(row["metabolite_mol"])
+        row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
+            row["metabolite_mol"]
+        )
     except:
         row["substrate_mol"] = None
         row["metabolite_mol"] = None
@@ -222,12 +224,12 @@ def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
 
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
-    
+
     Returns:
         pd.DataFrame: DataFrame containing the standardized substrate and metabolite molecules.
     """
     data_size = len(data)
-    
+
     data = data.apply(_standardize_row, axis=1)
     data = data.dropna(subset=["substrate_mol", "metabolite_mol"])
 

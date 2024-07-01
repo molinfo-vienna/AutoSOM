@@ -8,14 +8,19 @@ from tqdm import tqdm
 from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 
 from soman.soman import get_soms
-from soman.utils import concat_lists, curate_data, filter_data, standardize_data, symmetrize_soms
+from soman.utils import (
+    concat_lists,
+    curate_data,
+    filter_data,
+    standardize_data,
+    symmetrize_soms,
+)
 
 np.random.seed(seed=42)
 tqdm.pandas()
 
 
 def run():
-
     if os.path.exists(args.outputPath):
         shutil.rmtree(args.outputPath)
     os.makedirs(args.outputPath)
