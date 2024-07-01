@@ -9,7 +9,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "networkx==3.3",
-        "numpy==2.0.0",
+        "numpy==1.26.4",
         "pandas==2.2.2",
         "rdkit==2024.3.1",
         "tqdm==4.66.4",

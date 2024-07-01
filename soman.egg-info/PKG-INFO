@@ -5,5 +5,7 @@ Summary: Annotates the Sites of Metabolism (SoMs) of substrate-metabolite pairs.
 Author: Roxane Jacob
 Requires-Python: >=3.11
 Requires-Dist: networkx==3.3
+Requires-Dist: numpy==1.26.4
+Requires-Dist: pandas==2.2.2
 Requires-Dist: rdkit==2024.3.1
 Requires-Dist: tqdm==4.66.4
