@@ -198,8 +198,12 @@ class SOMFinder:
                                     in self.metabolite.GetSubstructMatch(mcs.queryMol)
                                 ):
                                     self.log("Redox matching successful.")
-                                    self.soms.append(atom.GetIdx())
                                     self.soms.append(neighbor.GetIdx())
+                                    if atom.GetAtomicNum() not in [9, 17, 35, 53]:
+                                        self.log("Redox reaction of non-halogen bond.")
+                                        self.soms.append(atom.GetIdx())
+                                    else:
+                                        self.log("Redox reaction of halogen bond.")
                                     return True
                             except KeyError:
                                 self.log("Redox matching failed -- KeyError.")
@@ -299,6 +303,7 @@ class SOMFinder:
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
             )
         ]
+
         return True
 
     def _handle_complex_non_redox_reaction_largest_common_subgraph_matching(self):
@@ -406,6 +411,23 @@ class SOMFinder:
                     != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
                 )
             ]
+
+            # Add an exception for the reduction of nitro groups
+            if len(self.soms) == 3:
+                if set(
+                    [
+                        self.substrate.GetAtomWithIdx(som).GetAtomicNum()
+                        for som in self.soms
+                    ]
+                ) == {6, 7, 8}:
+                    corrected_nitro_soms = [
+                        som
+                        for som in self.soms
+                        if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 7
+                    ]
+                    self.soms = corrected_nitro_soms
+                    self.log("Nitro reduction detected. Corrected SoMs.")
+
             return True
 
         else:

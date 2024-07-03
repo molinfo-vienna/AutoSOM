@@ -45,21 +45,14 @@ def run():
     else:
         raise ValueError("Invalid type argument.")
 
-    data = data.set_axis(
-        [
-            "substrate_string",
-            "metabolite_string",
-            "substrate_id",
-            "substrate_name",
-            "metabolite_id",
-            "metabolite_name",
-            "substrate_mol",
-            "metabolite_mol",
-        ],
-        axis=1,
+    data.rename(
+        columns={
+            data.columns[0]: "substrate_string",
+            data.columns[1]: "substrate_string",
+        },
+        inplace=True,
     )
     print(f"Data set contains {len(data)} reactions.")
-
 
     data = curate_data(data)
     data = filter_data(data, 30)
@@ -113,8 +106,7 @@ def run():
 
     data["substrate_inchi"] = data.substrate_mol.map(lambda x: MolToInchi(x))
     data_grouped = data.groupby("substrate_inchi", as_index=False).agg(
-        {"soms": concat_lists,
-         "substrate_id": list}
+        {"soms": concat_lists, "substrate_id": list}
     )
     data_grouped_first = data.groupby("substrate_inchi", as_index=False).first()[
         ["substrate_inchi", "substrate_name", "substrate_mol"]
