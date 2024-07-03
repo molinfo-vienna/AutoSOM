@@ -3,7 +3,7 @@ import numpy as np
 
 from datetime import datetime
 from networkx.algorithms import isomorphism
-from rdkit.Chem import Mol, rdFingerprintGenerator, rdFMCS
+from rdkit.Chem import Mol, MolFromSmarts, rdFingerprintGenerator, rdFMCS
 from rdkit.DataStructs import TanimotoSimilarity
 
 
@@ -161,6 +161,30 @@ class SOMFinder:
                                 self.soms.append(neighbor.GetIdx())
                             else:
                                 self.soms.append(atom.GetIdx())
+
+                # Build exception for acetals
+                if len(
+                    set(self.soms).intersection(
+                        set(
+                            self.substrate.GetSubstructMatch(
+                                MolFromSmarts("[C;X4](O[*])O[*]")
+                            )
+                        )
+                    )) > 0:
+                    corrected_soms_acetal = [
+                        atom.GetIdx()
+                        for atom in self.substrate.GetAtoms()
+                        if (
+                            atom.GetIdx()
+                            in self.substrate.GetSubstructMatch(
+                                MolFromSmarts("[C;X4](O)O")
+                            )
+                        )
+                        & (atom.GetAtomicNum() == 6)
+                    ]
+                    self.soms = corrected_soms_acetal
+                    self.log("Acetal elimination detected. Corrected SoMs.")
+
                 self.log("Simple elimination successful.")
                 return True
             except:
@@ -421,6 +445,17 @@ class SOMFinder:
                     self.soms = corrected_nitro_soms
                     self.log("Nitro reduction detected. Corrected SoMs.")
 
+            # Add an exception for the reduction of thiourea groups
+            smarts_thiourea = "NC(=S)N"
+            if self.substrate.HasSubstructMatch(MolFromSmarts(smarts_thiourea)):
+                corrected_thiourea_soms = [
+                    som
+                    for som in self.soms
+                    if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
+                ]
+                self.soms = corrected_thiourea_soms
+                self.log("Thiourea reduction detected. Corrected SoMs.")
+
             return True
 
         else:
@@ -472,7 +507,7 @@ class SOMFinder:
             self._handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching()
         ):
             return sorted(self.soms)
-        
+
         else:
             self.log(
                 "No global subgraph isomorphism matching found. Checking for largest common subgraph matching..."
