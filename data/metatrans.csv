@@ -1,4 +1,4 @@
-parent_smiles,metabolite_smiles
+substrate_smiles,metabolite_smiles
 CNC(=O)c1cc(Oc2ccc(NC(=O)Nc3ccc(Cl)c(C(F)(F)F)c3)cc2)ccn1,CNC(=O)c1cc(Oc2ccc(NC(=O)N(c3ccc(Cl)c(C(F)(F)F)c3)[C@@H]3O[C@H](C(=O)O)[C@@H](O)[C@H](O)[C@H]3O)cc2)ccn1
 C[C@]12CC[C@@H]3c4ccc(O)cc4CC[C@H]3[C@@H]1CCC2=O,C[C@]12CC[C@@H]3c4ccc(O)cc4CCC3[C@@H]1C[C@@H](O)C2=O
 NC(=O)OCC(COC(N)=O)c1ccccc1,N=C(O)OCC(CO)c1ccccc1
