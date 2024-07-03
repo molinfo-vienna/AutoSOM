@@ -129,8 +129,6 @@ class SOMFinder:
                 return True
             except:
                 self.log("Simple addition matching failed.")
-        else:
-            self.log("No simple addition matching found.")
         return False
 
     def _handle_simple_elimination(self):
@@ -167,8 +165,6 @@ class SOMFinder:
                 return True
             except:
                 self.log("Simple elimination matching failed.")
-        else:
-            self.log("No simple elimination matching found.")
         return False
 
     def _handle_redox_reaction(self):
@@ -210,10 +206,7 @@ class SOMFinder:
                                 return False
             else:
                 self.log("Redox matching failed.")
-                return False
-        else:
-            self.log("No MCS matching found.")
-            return False
+        return False
 
     def _handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching(self):
         """
@@ -431,7 +424,6 @@ class SOMFinder:
             return True
 
         else:
-            self.log("No partial graph matching found.")
             return False
 
     def find_soms(self):
@@ -452,6 +444,8 @@ class SOMFinder:
             )
             if self._handle_simple_addition():
                 return sorted(self.soms)
+            else:
+                self.log("No simple addition found.")
 
         elif self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
             self.log(
@@ -459,13 +453,17 @@ class SOMFinder:
             )
             if self._handle_simple_elimination():
                 return sorted(self.soms)
+            else:
+                self.log("No simple elimination found.")
 
         else:
             self.log(
-                "Complex reaction with equal number of heavy atoms in substrate and metabolite, i.e. probably a redox reaction."
+                "Complex reaction with equal number of heavy atoms in substrate and metabolite, i.e. maybe a simple redox reaction."
             )
             if self._handle_redox_reaction():
                 return sorted(self.soms)
+            else:
+                self.log("No simple redox reaction found.")
 
         self.log(
             "Complex non-redox reaction. Checking for global subgraph isomorphism matching..."
@@ -474,15 +472,17 @@ class SOMFinder:
             self._handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching()
         ):
             return sorted(self.soms)
-
+        
         else:
             self.log(
-                "Complex non-redox reaction. Checking for largest common subgraph matching..."
+                "No global subgraph isomorphism matching found. Checking for largest common subgraph matching..."
             )
             if (
                 self._handle_complex_non_redox_reaction_largest_common_subgraph_matching()
             ):
                 return sorted(self.soms)
+            else:
+                self.log("No partial graph matching matching found.")
 
         self.log("No SoMs found.")
         return sorted(self.soms)
