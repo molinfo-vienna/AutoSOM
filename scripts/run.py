@@ -113,10 +113,11 @@ def run():
 
     data["substrate_inchi"] = data.substrate_mol.map(lambda x: MolToInchi(x))
     data_grouped = data.groupby("substrate_inchi", as_index=False).agg(
-        {"soms": concat_lists}
+        {"soms": concat_lists,
+         "substrate_id": list}
     )
     data_grouped_first = data.groupby("substrate_inchi", as_index=False).first()[
-        ["substrate_inchi", "substrate_id", "substrate_name", "substrate_mol"]
+        ["substrate_inchi", "substrate_name", "substrate_mol"]
     ]
 
     data_merged = data_grouped.merge(data_grouped_first, how="inner")
