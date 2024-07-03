@@ -56,7 +56,7 @@ def run():
 
     data = curate_data(data)
     data = filter_data(data, 30)
-    data = standardize_data(data)
+    # data = standardize_data(data)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
     data["soms"] = data.progress_apply(
