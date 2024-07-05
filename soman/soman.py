@@ -126,6 +126,26 @@ class SOMFinder:
                         ):
                             self.soms.append(self.mapping[neighbor.GetIdx()])
                 self.log("Simple addition successful.")
+
+                # Correct SoMs for the addition of carnitine to a carboxylic acid
+                if (
+                    len(self.soms) == 1
+                    and len(
+                        self.metabolite.GetSubstructMatch(
+                            MolFromSmarts("[N+](C)(C)(C)-C-C(O)C-C(=O)[O]")
+                        )
+                    )
+                    > 0
+                ):
+                    atom_id_in_substrate = self.mapping[self.soms[0]]
+                    corrected_soms_carnitine = [
+                        self.substrate.GetAtomWithIdx(atom_id_in_substrate)
+                        .GetNeighbors()[0]
+                        .GetIdx()
+                    ]
+                    self.soms = corrected_soms_carnitine
+                    self.log("Carnitine addition detected. Corrected SoMs.")
+
                 return True
             except:
                 self.log("Simple addition matching failed.")
@@ -163,14 +183,18 @@ class SOMFinder:
                                 self.soms.append(atom.GetIdx())
 
                 # Build exception for acetals
-                if len(
-                    set(self.soms).intersection(
-                        set(
-                            self.substrate.GetSubstructMatch(
-                                MolFromSmarts("[C;X4](O[*])O[*]")
+                if (
+                    len(
+                        set(self.soms).intersection(
+                            set(
+                                self.substrate.GetSubstructMatch(
+                                    MolFromSmarts("[C;X4](O[*])O[*]")
+                                )
                             )
                         )
-                    )) > 0:
+                    )
+                    > 0
+                ):
                     corrected_soms_acetal = [
                         atom.GetIdx()
                         for atom in self.substrate.GetAtoms()
@@ -184,6 +208,39 @@ class SOMFinder:
                     ]
                     self.soms = corrected_soms_acetal
                     self.log("Acetal elimination detected. Corrected SoMs.")
+
+                # Correct SoMs for ester hydrolysis
+                if (
+                    len(
+                        set(self.soms).intersection(
+                            set(
+                                self.substrate.GetSubstructMatch(
+                                    MolFromSmarts("[C](=O)[O][C]")
+                                )
+                            )
+                        )
+                    )
+                    > 0
+                ):
+                    corrected_soms_ester = [
+                        atom.GetIdx()
+                        for atom in self.substrate.GetAtoms()
+                        if (
+                            atom.GetIdx()
+                            in self.substrate.GetSubstructMatch(
+                                MolFromSmarts("[C](=O)[O][C]")
+                            )
+                        )
+                        & (
+                            atom.GetIdx()
+                            in self.substrate.GetSubstructMatch(
+                                MolFromSmarts("[C](=O)")
+                            )
+                        )
+                        & (atom.GetAtomicNum() == 6)
+                    ]
+                    self.soms = corrected_soms_ester
+                    self.log("Ester hydrolysis detected. Corrected SoMs if necessary.")
 
                 self.log("Simple elimination successful.")
                 return True
@@ -201,7 +258,6 @@ class SOMFinder:
         self.log("Checking for MCS matching...")
         mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
         if mcs.numAtoms > 0:
-            self.log("MCS matching found!")
             highlights_query = self.substrate.GetSubstructMatch(mcs.queryMol)
             highlights_target = self.metabolite.GetSubstructMatch(mcs.queryMol)
 
@@ -224,6 +280,31 @@ class SOMFinder:
                                         self.soms.append(atom.GetIdx())
                                     else:
                                         self.log("Redox reaction of halogen bond.")
+
+                                    # Add a correction for C-N bond redox reactions (only the carbon is the som)
+                                    covered_atom_types = [
+                                        self.substrate.GetAtomWithIdx(
+                                            atom_id
+                                        ).GetAtomicNum()
+                                        for atom_id in self.soms
+                                    ]
+                                    if (
+                                        6 in covered_atom_types
+                                        and 7 in covered_atom_types
+                                    ):
+                                        corrected_soms_cn_redox = [
+                                            atom_id
+                                            for atom_id in self.soms
+                                            if self.substrate.GetAtomWithIdx(
+                                                atom_id
+                                            ).GetAtomicNum()
+                                            == 6
+                                        ]
+                                        self.soms = corrected_soms_cn_redox
+                                        self.log(
+                                            "C-N redox reaction detected. Corrected SoMs."
+                                        )
+
                                     return True
                             except KeyError:
                                 self.log("Redox matching failed -- KeyError.")
@@ -455,6 +536,34 @@ class SOMFinder:
                 ]
                 self.soms = corrected_thiourea_soms
                 self.log("Thiourea reduction detected. Corrected SoMs.")
+
+            # Correct SoMs for the hydrolysis of oxacyclopropane rings
+            smarts_oxycyclopropane = "C1OC1"
+            if (
+                len(
+                    set(self.soms).intersection(
+                        set(
+                            self.substrate.GetSubstructMatch(
+                                MolFromSmarts(smarts_oxycyclopropane)
+                            )
+                        )
+                    )
+                )
+                > 0
+            ):
+                corrected_soms_oxacyclopropane = [
+                    atom.GetIdx()
+                    for atom in self.substrate.GetAtoms()
+                    if (
+                        atom.GetIdx()
+                        in self.substrate.GetSubstructMatch(
+                            MolFromSmarts(smarts_oxycyclopropane)
+                        )
+                    )
+                    & (atom.GetAtomicNum() == 6)
+                ]
+                self.soms = corrected_soms_oxacyclopropane
+                self.log("Oxacyclopropane hydrolysis detected. Corrected SoMs.")
 
             return True
 
