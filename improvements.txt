@@ -1,0 +1,22 @@
+1)  Implemented exception for glutathione. Concerns 129 reactions in the MetaQSAR dataset.
+    This case is now taken care of right at the beginning of the pipeline as a separate category.
+        TODO:   There are a few cases of class 104 where the glutathione "replaces" and halogen. 
+                The labels are inconsistent. The annotator sometimes fails to find the ground truth.
+                I need to find a plausible reaction mechanism for this biotransformation to settle the case.
+
+2)  Moved the molecular weight filter to the critical part of the algorithm (MCS matching and simple redox reactions),
+    so that other parts of the algorithm which are not too affected by the size of the molecules can run without rejection.
+    For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 394,
+    whithout increasing the runtime by a significant amount.
+
+
+TODO (after discussion on 11.10.24)
+
+1)  Ester hydrolysis/dealkylation inconsistent
+2)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that this is confusing. Find a solution.
+3)  Piperazine: annotate only one side
+4)  Morpholine: look at it again; BASF found an example where the pipeline completely fails
+5)  The rule for molecule containing phosphorus atoms is too simple; improve it.
+6)  Try and make the output more verbose (log file is not enough) -> write an email explaining why it is not possible to have a detailed separartion of reaction types within big rules
+7)  Clarify multi steps reactions; it will probably never be possible to handle those.
+8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of a "complex".
