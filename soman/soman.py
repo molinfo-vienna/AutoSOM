@@ -1,9 +1,19 @@
 import networkx as nx
 import numpy as np
 
+from collections import Counter
 from datetime import datetime
 from networkx.algorithms import isomorphism
-from rdkit.Chem import FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts, MolFromSmiles, rdFingerprintGenerator, rdFMCS
+from rdkit.Chem import (
+    FragmentOnBonds, 
+    GetMolFrags, 
+    Mol, 
+    MolFromSmarts, 
+    MolFromSmiles, 
+    rdFingerprintGenerator, 
+    rdFMCS, 
+    rdMolDescriptors,
+)
 from rdkit.DataStructs import TanimotoSimilarity
 
 
@@ -40,36 +50,55 @@ class SOMFinder:
         return params
 
     @staticmethod
-    def mol_to_nx(mol: Mol) -> nx.Graph:
+    def count_elements(mol: Mol) -> dict:
         """
-        Convert an RDKit molecule to a NetworkX graph.
+        Count the number of atoms of each element in a molecule.
 
         Args:
-            mol (RDKit Mol): Molecule to convert.
-
+            mol (RDKit Mol): Molecule to count the elements of.
+        
         Returns:
-            G (NetworkX Graph): Graph representation of the molecule.
+            dict: Dictionary containing the counts of each element in the molecule.
         """
-        G = nx.Graph()
-        for atom in mol.GetAtoms():
-            G.add_node(atom.GetIdx(), atomic_num=atom.GetAtomicNum())
-        for bond in mol.GetBonds():
-            G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
-        return G
+        mol_formula = rdMolDescriptors.CalcMolFormula(mol)
+        element_counts = Counter()
+        i = 0
+        while i < len(mol_formula):
+            if mol_formula[i].isalpha():
+                element = mol_formula[i]
+                i += 1
+                if i < len(mol_formula) and mol_formula[i].islower():
+                    element += mol_formula[i]
+                    i += 1
+                count = ''
+                while i < len(mol_formula) and mol_formula[i].isdigit():
+                    count += mol_formula[i]
+                    i += 1
+                element_counts[element] += int(count) if count else 1
+            else:
+                i += 1
+
+        return element_counts
 
     @staticmethod
-    def is_substructure(query, target):
-        """
-        Check if the query is a substructure of the target.
+    def detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool:
+        """Detects reactions consisting in the oxidation of a halogen to a hydroxy group
 
         Args:
-            query (RDKit Mol): Query molecule.
-            target (RDKit Mol): Target molecule.
+            substrate (Mol)
+            metabolite (Mol)
 
         Returns:
-            bool: True if the query is a substructure of the target, False otherwise.
+            bool: True if a halogen to hydroxy reaction is detected, False otherwise.
         """
-        return target.HasSubstructMatch(query)
+        substrate_elements = SOMFinder.count_elements(substrate)
+        metabolite_elements = SOMFinder.count_elements(metabolite)
+        if substrate_elements['C'] == metabolite_elements['C']:  # Check if the number of carbons is the same
+            for hal in ['F', 'Cl', 'Br', 'I']:
+                if (substrate_elements[hal] - 1 == metabolite_elements[hal]) or (substrate_elements[hal] == 1 and metabolite_elements[hal] == 0):  # Check if the number of halogens decreases by 1
+                    if (substrate_elements['O'] + 1 == metabolite_elements['O']) or (substrate_elements['O'] == 0 and metabolite_elements['O'] == 1):  # Check if the number of oxygens increases by 1
+                        return True
+        return False
 
     @staticmethod
     def equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
@@ -96,6 +125,38 @@ class SOMFinder:
         else:
             return False
 
+    @staticmethod
+    def is_substructure(query, target):
+        """
+        Check if the query is a substructure of the target.
+
+        Args:
+            query (RDKit Mol): Query molecule.
+            target (RDKit Mol): Target molecule.
+
+        Returns:
+            bool: True if the query is a substructure of the target, False otherwise.
+        """
+        return target.HasSubstructMatch(query)
+
+    @staticmethod
+    def mol_to_nx(mol: Mol) -> nx.Graph:
+        """
+        Convert an RDKit molecule to a NetworkX graph.
+
+        Args:
+            mol (RDKit Mol): Molecule to convert.
+
+        Returns:
+            G (NetworkX Graph): Graph representation of the molecule.
+        """
+        G = nx.Graph()
+        for atom in mol.GetAtoms():
+            G.add_node(atom.GetIdx(), atomic_num=atom.GetAtomicNum())
+        for bond in mol.GetBonds():
+            G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        return G
+
     def log(self, message):
         """
         Log a message to a text file.
@@ -118,12 +179,12 @@ class SOMFinder:
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
 
-    def handle_glutathione_conjugation(self):
+    def _handle_glutathione_conjugation(self):
         """
         Annotate SoMs for glutathione conjugation.
 
         Returns:
-            bool: True if glutathione conjugation annotation is succesfull, False otherwise.
+            bool: True if annotation is succesfull, False otherwise.
         """
         try:
             glutathione_atom_idx = self.metabolite.GetSubstructMatch(MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N"))
@@ -163,7 +224,39 @@ class SOMFinder:
         except:
             return False
 
+    def _handle_halogen_to_hydroxy(self):
+        """
+        Annotate SoMs for halogen to hydroxy oxidations.
+
+        Returns:
+            bool: True if annotation is succesfull, False otherwise.
+        """
+        try:
+            # Match the indices of the atoms in the substrate and the metabolite
+            # based on their MCS match
+            self.params.BondTyper = rdFMCS.BondCompare.CompareAny  # Allow any bond type to be matched
+            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+            self.params.BondTyper = rdFMCS.BondCompare.CompareOrder  # Reset the bond type comparison to the default
+            highlights_substrate = self.substrate.GetSubstructMatch(mcs.queryMol)
+            highlights_metabolite = self.metabolite.GetSubstructMatch(mcs.queryMol)
+            self.mapping = {
+                i: j for i, j in zip(highlights_substrate, highlights_metabolite)
+            }
+            # Find the halogen atom in the substrate that is not in the metabolite
+            for atom_id in self.substrate.GetSubstructMatch(MolFromSmarts("[F,Cl,Br,I]")):
+                if atom_id not in self.mapping:
+                    halogen_atom_id = atom_id
+                    break
+            # Find the index of the neighbor of that halogen atom
+            halogen_atom_neighbor_id = self.substrate.GetAtomWithIdx(halogen_atom_id).GetNeighbors()[0].GetIdx()
+            self.soms = [halogen_atom_neighbor_id]
+            self.log("Halogen to hydroxy oxidation successful.")
+            return True
+        except:
+            return False
+
     def _handle_simple_addition(self):
+
         """
         Check for simple addition reactions.
 
@@ -717,10 +810,17 @@ class SOMFinder:
         if self.metabolite.HasSubstructMatch(MolFromSmiles('C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N')) and \
             not self.substrate.HasSubstructMatch(MolFromSmiles('C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N')):
             self.log("Glutathione detected.")
-            if self.handle_glutathione_conjugation():
+            if self._handle_glutathione_conjugation():
                 return sorted(self.soms)
             else:
                 self.log("Glutathione conjugation matching failed.")
+
+        if self.detect_halogen_to_hydroxy(self.substrate, self.metabolite):
+            self.log("Halogen to hydroxy detected.")
+            if self._handle_halogen_to_hydroxy():
+                return sorted(self.soms)
+            else:
+                self.log("Halogen to hydroxy matching failed.")
 
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             self.log(

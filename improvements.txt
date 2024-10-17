@@ -9,14 +9,16 @@
     For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 394,
     whithout increasing the runtime by a significant amount.
 
+3) Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
+
 
 TODO (after discussion on 11.10.24)
 
 1)  Ester hydrolysis/dealkylation inconsistent
-2)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that this is confusing. Find a solution.
+2)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
 3)  Piperazine: annotate only one side
 4)  Morpholine: look at it again; BASF found an example where the pipeline completely fails
 5)  The rule for molecule containing phosphorus atoms is too simple; improve it.
-6)  Try and make the output more verbose (log file is not enough) -> write an email explaining why it is not possible to have a detailed separartion of reaction types within big rules
-7)  Clarify multi steps reactions; it will probably never be possible to handle those.
-8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of a "complex".
+6)  Try and make the output more verbose (log file is not enough)
+7)  Clarify multi-steps reactions; it will probably never be possible to handle those.
+8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
