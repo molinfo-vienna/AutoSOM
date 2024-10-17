@@ -3,7 +3,7 @@ import numpy as np
 
 from datetime import datetime
 from networkx.algorithms import isomorphism
-from rdkit.Chem import Mol, MolFromSmarts, rdFingerprintGenerator, rdFMCS
+from rdkit.Chem import FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts, MolFromSmiles, rdFingerprintGenerator, rdFMCS
 from rdkit.DataStructs import TanimotoSimilarity
 
 
@@ -15,16 +15,18 @@ class SOMFinder:
         substrate_id,
         metabolite_id,
         logger_path,
+        filter_size,
     ):
         self.substrate = substrate
         self.metabolite = metabolite
         self.substrate_id = substrate_id
         self.metabolite_id = metabolite_id
         self.logger_path = logger_path
+        self.filter_size = filter_size
         self.params = self._initialize_mcs_params()
         self.soms = []
         self.mapping = {}
-
+        
     def _initialize_mcs_params(self):
         params = rdFMCS.MCSParameters()
         params.timeout = 10
@@ -115,6 +117,51 @@ class SOMFinder:
             atom.SetIntProp("atomNote", atom.GetIdx())
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
+
+    def handle_glutathione_conjugation(self):
+        """
+        Annotate SoMs for glutathione conjugation.
+
+        Returns:
+            bool: True if glutathione conjugation annotation is succesfull, False otherwise.
+        """
+        try:
+            glutathione_atom_idx = self.metabolite.GetSubstructMatch(MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N"))
+            if len(glutathione_atom_idx) > 0:
+                # Find the index of the sulfur atom of the glutathione moiety in the metabolite
+                s_index = [atom_id for atom_id in glutathione_atom_idx if self.metabolite.GetAtomWithIdx(atom_id).GetAtomicNum() == 16][0]
+                # Find the indices of the neighbors of the sulfur atom in the metabolite
+                s_neighbors_idx = [neighbor.GetIdx() for neighbor in self.metabolite.GetAtomWithIdx(s_index).GetNeighbors()]
+                # Find the index of the neighbor of the sulfur atom that is not in the glutathione moiety
+                som_idx_in_metabolite = [neighbor for neighbor in s_neighbors_idx if neighbor not in glutathione_atom_idx][0]
+                # Get bond id between the sulfur atom and the atom that was the som in the metabolite
+                bond_id = self.metabolite.GetBondBetweenAtoms(s_index, som_idx_in_metabolite).GetIdx()
+                # Split the metabolite into two fragements along the bond between the sulfur atom and the atom that was the som
+                fragments = GetMolFrags(FragmentOnBonds(self.metabolite, [bond_id], addDummies=False), asMols=True)
+                # Find the fragment that does not contain the glutathione moiety
+                non_glutathione_fragment = [fragment for fragment in fragments if len(fragment.GetSubstructMatch(MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")))==0][0]
+                # Find a mapping between the atoms in the non-glutathione fragment and the atoms in the metabolite
+                mcs = rdFMCS.FindMCS([self.metabolite, non_glutathione_fragment], self.params)
+                highlights_query = self.metabolite.GetSubstructMatch(mcs.queryMol)
+                highlights_target = non_glutathione_fragment.GetSubstructMatch(mcs.queryMol)
+                self.mapping = {i: j for i, j in zip(highlights_query, highlights_target)}
+                # Find the index of the som_idx_in_metabolite in the fragment that does not contain the glutathione moiety
+                som_idx_in_fragment = [self.mapping[som_idx_in_metabolite]][0]
+                # Find a mapping between the atoms in the non-glutathione fragment and the atoms in the substrate
+                self.params.BondTyper = rdFMCS.BondCompare.CompareAny  # Allow any bond type to be matched
+                mcs = rdFMCS.FindMCS([self.substrate, non_glutathione_fragment], self.params)
+                self.params.BondTyper = rdFMCS.BondCompare.CompareOrder  # Reset the bond type comparison to the default
+                highlights_query = non_glutathione_fragment.GetSubstructMatch(mcs.queryMol)
+                highlights_target = self.substrate.GetSubstructMatch(mcs.queryMol)
+                self.mapping = {i: j for i, j in zip(highlights_query, highlights_target)}
+                # Find the index of the som_idx_in_fragment in the substrate
+                self.soms = [self.mapping[som_idx_in_fragment]]
+                self.log("Glutathione conjugation successful.")
+                return True
+            else:
+                return False
+        except:
+            return False
 
     def _handle_simple_addition(self):
         """
@@ -212,7 +259,7 @@ class SOMFinder:
                             else:
                                 self.soms.append(atom.GetIdx())
 
-                # Build exception for acetals
+                # Add exception for acetals
                 if (
                     len(
                         set(self.soms).intersection(
@@ -667,6 +714,14 @@ class SOMFinder:
             f"Substrate ID: {self.substrate_id}, metabolite ID: {self.metabolite_id}"
         )
 
+        if self.metabolite.HasSubstructMatch(MolFromSmiles('C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N')) and \
+            not self.substrate.HasSubstructMatch(MolFromSmiles('C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N')):
+            self.log("Glutathione detected.")
+            if self.handle_glutathione_conjugation():
+                return sorted(self.soms)
+            else:
+                self.log("Glutathione conjugation matching failed.")
+
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             self.log(
                 "Substrate has less heavy atoms than the metabolite. Checking for simple addition..."
@@ -690,6 +745,12 @@ class SOMFinder:
                 self.log(
                     "Complex reaction with equal number of heavy atoms and equal number of halogen atoms in substrate and metabolite, i.e. maybe a simple redox reaction."
                 )
+                if self.substrate.GetNumHeavyAtoms() > self.filter_size \
+                    or self.metabolite.GetNumHeavyAtoms() > self.filter_size:
+                        self.log(
+                            "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found."
+                        )
+                        return sorted(self.soms)
                 if self._handle_redox_reaction():
                     return sorted(self.soms)
                 else:
@@ -707,6 +768,12 @@ class SOMFinder:
             self.log(
                 "No global subgraph isomorphism matching found. Checking for largest common subgraph matching..."
             )
+            if self.substrate.GetNumHeavyAtoms() > self.filter_size \
+                or self.metabolite.GetNumHeavyAtoms() > self.filter_size:
+                    self.log(
+                        "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found."
+                    )
+                    return sorted(self.soms)
             if (
                 self._handle_complex_non_redox_reaction_largest_common_subgraph_matching()
             ):
@@ -718,7 +785,7 @@ class SOMFinder:
         return sorted(self.soms)
 
 
-def get_soms(substrate, metabolite, substrate_id, metabolite_id, logger_path):
+def get_soms(substrate, metabolite, substrate_id, metabolite_id, logger_path, filter_size):
     """
     Find the SoMs in the substrate and the metabolite.
 
@@ -733,6 +800,6 @@ def get_soms(substrate, metabolite, substrate_id, metabolite_id, logger_path):
         soms (List[int]): List of SoMs.
     """
     som_finder = SOMFinder(
-        substrate, metabolite, substrate_id, metabolite_id, logger_path
+        substrate, metabolite, substrate_id, metabolite_id, logger_path, filter_size
     )
     return som_finder.find_soms()

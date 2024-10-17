@@ -100,7 +100,7 @@ def concat_lists(lst: List) -> List:
 
 
 def curate_data(data: pd.DataFrame) -> pd.DataFrame:
-    """Curate the data according to a subset of the rules defined in the SoM predictor orject (AweSOM):
+    """Curate the data according to a subset of the rules defined in the SoM predictor (AweSOM):
     (1) Compute each compound's InChI. Remove any entries for which an InChI cannot be computed, and entries with identical database-internal molecular identifiers but differing InChI.
     (2) Discard compounds containing any chemical element other than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
     (3) Discard compounds with molecular mass above 1000 Da.
@@ -189,33 +189,33 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def filter_data(data: pd.DataFrame, n: int) -> pd.DataFrame:
-    """
-    Filters out reactions where the substrate or the metabolite has more than 30 heavy atoms.
+# def filter_data(data: pd.DataFrame, n: int) -> pd.DataFrame:
+#     """
+#     Filters out reactions where the substrate or the metabolite has more than 30 heavy atoms.
 
-    Args:
-        data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
-        n (int): Maximum number of heavy atoms allowed in the substrate and metabolite.
+#     Args:
+#         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
+#         n (int): Maximum number of heavy atoms allowed in the substrate and metabolite.
 
-    Returns:
-        data (pd.DataFrame): Filtered DataFrame containing the substrate and metabolite molecules.
-    """
-    data_size = len(data)
-    data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
-        lambda x: x.GetNumHeavyAtoms()
-    )
-    data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
-        lambda x: x.GetNumHeavyAtoms()
-    )
-    data = data[
-        (data.substrate_num_heavy_atoms < n) & (data.metabolite_num_heavy_atoms < n)
-    ]
-    print(
-        f"Maximum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
-    )
-    data_size = len(data)
-    data = data.reset_index(drop=True, inplace=False)
-    return data
+#     Returns:
+#         data (pd.DataFrame): Filtered DataFrame containing the substrate and metabolite molecules.
+#     """
+#     data_size = len(data)
+#     data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
+#         lambda x: x.GetNumHeavyAtoms()
+#     )
+#     data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
+#         lambda x: x.GetNumHeavyAtoms()
+#     )
+#     data = data[
+#         (data.substrate_num_heavy_atoms < n) & (data.metabolite_num_heavy_atoms < n)
+#     ]
+#     print(
+#         f"Maximum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+#     )
+#     data_size = len(data)
+#     data = data.reset_index(drop=True, inplace=False)
+#     return data
 
 
 def standardize_data(data: pd.DataFrame) -> pd.DataFrame:

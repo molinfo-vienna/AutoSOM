@@ -11,7 +11,6 @@ from soman.soman import get_soms
 from soman.utils import (
     concat_lists,
     curate_data,
-    filter_data,
     standardize_data,
     symmetrize_soms,
 )
@@ -55,7 +54,6 @@ def run():
     print(f"Data set contains {len(data)} reactions.")
 
     data = curate_data(data)
-    data = filter_data(data, 30)
     # data = standardize_data(data)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
@@ -66,6 +64,7 @@ def run():
             x.substrate_id,
             x.metabolite_id,
             logger_path=os.path.join(args.outputPath, "logs.txt"),
+            filter_size=args.filter_size,
         ),
         axis=1,
     )
@@ -151,6 +150,16 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help='The type of input data. Choose between "inchi" and "smiles".',
+    )
+
+    parser.add_argument(
+        "-f",
+        "--filter_size",
+        type=int,
+        required=False,
+        default=30,
+        help='The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
+              The runtime can get very high for large molecules.',
     )
 
     args = parser.parse_args()
