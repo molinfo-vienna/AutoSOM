@@ -36,7 +36,7 @@ import pandas as pd
 from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 from tqdm import tqdm
 
-from src.soman import get_soms
+from src.soman import SOMFinder
 from src.utils import concat_lists, curate_data, symmetrize_soms  # standardize_data,
 
 np.random.seed(seed=42)
@@ -120,14 +120,14 @@ if __name__ == "__main__":
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
     data["soms"] = data.progress_apply(
-        lambda x: get_soms(
+        lambda x: SOMFinder(
             x.substrate_mol,
             x.metabolite_mol,
             x.substrate_id,
             x.metabolite_id,
             logger_path=os.path.join(args.outputPath, "logs.txt"),
             filter_size=args.filter_size,
-        ),
+        ).get_soms(),
         axis=1,
     )
     data["soms"] = data.apply(

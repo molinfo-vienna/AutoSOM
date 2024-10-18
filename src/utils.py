@@ -1,24 +1,32 @@
 """
-This module provides utility functions for processing and curating molecular data using RDKit and pandas. The functions include:
+This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX. The functions include:
 
-- _find_symmetry_groups(mol: Mol): Identifies symmetry groups in a molecule.
-- _set_allowed_elements_flag(mol: Mol): Checks if a molecule contains only allowed chemical elements.
-- _standardize_row(row: pd.Series): Standardizes a row of a DataFrame containing substrate and metabolite molecules.
-- concat_lists(lst: List): Concatenates a list of lists into a single list.
-- curate_data(data: pd.DataFrame): Curates molecular data according to specific rules.
-- standardize_data(data: pd.DataFrame): Standardizes molecular data using the ChEMBL standardizer.
-- symmetrize_soms(mol: Mol, soms: List[int]): Adds all atoms in a symmetry group to the list of Sites of Metabolism (SoMs) if any atom in the group is already a SoM.
+- `_find_symmetry_groups(mol: Mol)`: Identifies symmetry groups in a molecule.
+- `_set_allowed_elements_flag(mol: Mol)`: Checks if a molecule contains only allowed chemical elements.
+- `_standardize_row(row: pd.Series)`: Standardizes a row of a DataFrame containing substrate and metabolite molecules.
+- `concat_lists(lst: List)`: Concatenates a list of lists into a single list.
+- `count_elements(mol: Mol)`: Counts the number of atoms of each element in a molecule.
+- `curate_data(data: pd.DataFrame)`: Curates the data according to specific rules defined in the SoM predictor (AweSOM).
+- `detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol)`: Detects reactions consisting of the oxidation of a halogen to a hydroxy group.
+- `_is_carbon_count_unchanged(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of carbons remains the same.
+- `_is_halogen_count_decreased(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of halogens decreases by 1.
+- `_is_oxygen_count_increased(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of oxygens increases by 1.
+- `equal_number_halogens(mol1: Mol, mol2: Mol)`: Checks if two molecules have the same number of halogens.
+- `log(path: str, message: str)`: Logs a message to a text file.
+- `mol_to_graph(mol: Mol)`: Converts an RDKit molecule to a NetworkX graph.
+- `standardize_data(data: pd.DataFrame)`: Standardizes the data using the ChEMBL standardizer.
+- `symmetrize_soms(mol: Mol, soms: List[int])`: Adds all atoms in a symmetry group to the list of SoMs if any atom in the group is already a SoM.
 
-The module also defines a set of allowed atoms for chemical elements and imports necessary libraries for molecular processing.
+The module also defines a set of allowed atoms for chemical elements and imports necessary libraries.
 """
 
-
-from collections import defaultdict
-
+from collections import Counter, defaultdict
+from datetime import datetime
 from typing import List
 
+import networkx as nx
 import pandas as pd
-from rdkit.Chem import Mol, MolToInchi, rdMolDescriptors
+from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi, rdMolDescriptors
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 ALLOWED_ATOMS = {
@@ -93,7 +101,7 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
             row["metabolite_mol"]
         )
-    except:
+    except :
         row["substrate_mol"] = None
         row["metabolite_mol"] = None
 
@@ -111,6 +119,24 @@ def concat_lists(lst: List) -> List:
         List: Concatenated list.
     """
     return list(set(sum(lst, [])))
+
+
+def count_elements(mol: Mol) -> dict:
+    """
+    Counts the number of atoms of each element in a molecule.
+
+    Args:
+        mol (RDKit Mol): Molecule to count the elements of.
+
+    Returns:
+        dict: Dictionary containing the counts of each element in the molecule.
+    """
+    element_counts = Counter()
+    periodic_table = GetPeriodicTable()
+    for atom in mol.GetAtoms():
+        element = periodic_table.GetElementSymbol(atom.GetAtomicNum())
+        element_counts[element] += 1
+    return element_counts
 
 
 def curate_data(data: pd.DataFrame) -> pd.DataFrame:
@@ -203,33 +229,109 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-# def filter_data(data: pd.DataFrame, n: int) -> pd.DataFrame:
-#     """
-#     Filters out reactions where the substrate or the metabolite has more than 30 heavy atoms.
+def detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool:
+    """
+    Detects reactions consisting in the oxidation of a halogen to a hydroxy group.
 
-#     Args:
-#         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
-#         n (int): Maximum number of heavy atoms allowed in the substrate and metabolite.
+    Args:
+        substrate (Mol)
+        metabolite (Mol)
 
-#     Returns:
-#         data (pd.DataFrame): Filtered DataFrame containing the substrate and metabolite molecules.
-#     """
-#     data_size = len(data)
-#     data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
-#         lambda x: x.GetNumHeavyAtoms()
-#     )
-#     data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
-#         lambda x: x.GetNumHeavyAtoms()
-#     )
-#     data = data[
-#         (data.substrate_num_heavy_atoms < n) & (data.metabolite_num_heavy_atoms < n)
-#     ]
-#     print(
-#         f"Maximum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
-#     )
-#     data_size = len(data)
-#     data = data.reset_index(drop=True, inplace=False)
-#     return data
+    Returns:
+        bool: True if a halogen to hydroxy reaction is detected, False otherwise.
+    """
+    substrate_elements = count_elements(substrate)
+    metabolite_elements = count_elements(metabolite)
+
+    return (
+        _is_carbon_count_unchanged(substrate_elements, metabolite_elements)
+        and _is_halogen_count_decreased(substrate_elements, metabolite_elements)
+        and _is_oxygen_count_increased(substrate_elements, metabolite_elements)
+    )
+
+
+def _is_carbon_count_unchanged(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of carbons remains the same."""
+    return substrate_elements.get("C", 0) == metabolite_elements.get("C", 0)
+
+
+def _is_halogen_count_decreased(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of halogens decreases by 1."""
+    for hal in ["F", "Cl", "Br", "I"]:
+        if (substrate_elements.get(hal, 0) - 1 == metabolite_elements.get(hal, 0)) or (
+            substrate_elements.get(hal, 0) == 1 and metabolite_elements.get(hal, 0) == 0
+        ):
+            return True
+    return False
+
+
+def _is_oxygen_count_increased(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of oxygens increases by 1."""
+    return substrate_elements.get("O", 0) + 1 == metabolite_elements.get("O", 0) or (
+        substrate_elements.get("O", 0) == 0 and metabolite_elements.get("O", 0) == 1
+    )
+
+
+def equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
+    """
+    Check if two molecules have the same number of halogens.
+
+    Args:
+        mol1 (RDKit Mol): First molecule.
+        mol2 (RDKit Mol): Second molecule.
+
+    Returns:
+        bool: True if the two molecules have the same number of halogens, False otherwise.
+    """
+    halogen_atomic_nums = {9, 17, 35, 53}  # Atomic numbers for F, Cl, Br, I
+
+    num_halogens1 = sum(
+        atom.GetAtomicNum() in halogen_atomic_nums for atom in mol1.GetAtoms()
+    )
+    num_halogens2 = sum(
+        atom.GetAtomicNum() in halogen_atomic_nums for atom in mol2.GetAtoms()
+    )
+
+    return num_halogens1 == num_halogens2
+
+
+def log(path: str, message: str) -> None:
+    """
+    Log a message to a text file.
+
+    Args:
+        path (str): Path to the log file.
+        message (str): Message to log.
+
+    Returns:
+        None
+    """
+    with open(path, "a+", encoding="utf-8") as f:
+        f.write(f"{datetime.now()} {message}\n")
+
+
+def mol_to_graph(mol: Mol) -> nx.Graph:
+    """
+    Convert an RDKit molecule to a NetworkX graph.
+
+    Args:
+        mol (RDKit Mol): Molecule to convert.
+
+    Returns:
+        mol_graph (NetworkX Graph): Graph representation of the molecule.
+    """
+    mol_graph = nx.Graph()
+    for atom in mol.GetAtoms():
+        mol_graph.add_node(atom.GetIdx(), atomic_num=atom.GetAtomicNum())
+    for bond in mol.GetBonds():
+        mol_graph.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+    return mol_graph
 
 
 def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
