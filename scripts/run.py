@@ -7,8 +7,8 @@ from tqdm import tqdm
 
 from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 
-from soman.soman import get_soms
-from soman.utils import (
+from src.soman import get_soms
+from src.utils import (
     concat_lists,
     curate_data,
     standardize_data,
