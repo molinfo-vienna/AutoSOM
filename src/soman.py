@@ -1,23 +1,100 @@
-import networkx as nx
-import numpy as np
+"""
+This module provides functionality for identifying Sites of Metabolism (SoMs) in chemical reactions using RDKit and NetworkX libraries. 
+
+Classes:
+    SOMFinder: A class for finding and annotating Sites of Metabolism (SoMs) in chemical reactions.
+
+Static methods of SOMFinder:
+    count_elements(mol: Mol) -> dict:
+    
+    detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool:
+        Detect reactions consisting of the oxidation of a halogen to a hydroxy group.
+    
+    equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
+    
+    is_substructure(query, target) -> bool:
+    
+    mol_to_nx(mol: Mol) -> nx.Graph:
+
+Methods of SOMFinder:
+    log(message: str) -> None:
+        Log a message to a text file.
+    _initialize_atom_notes() -> None:
+        Initialize the atom note properties for the substrate and the metabolite.
+    _handle_glutathione_conjugation() -> bool:
+        Annotate SoMs for glutathione conjugation.
+    _handle_halogen_to_hydroxy() -> bool:
+        Annotate SoMs for halogen to hydroxy oxidations.
+    _handle_simple_addition() -> bool:
+        Annotate SoMs for simple addition reactions.
+    _handle_simple_elimination() -> bool:
+        Annotate SoMs for simple elimination reactions.
+    _handle_redox_reaction() -> bool:
+        Annotate SoMs for redox reactions.
+    _handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching() -> bool:
+        Annotate SoMs for complex non-redox reactions using subgraph isomorphism matching.
+    _handle_complex_non_redox_reaction_largest_common_subgraph_matching() -> bool:
+        Annotate SoMs for complex non-redox reactions using largest common subgraph matching.
+    find_soms() -> List[int]:
+        Find and annotate Sites of Metabolism (SoMs) in chemical reactions.
+
+Functions:
+    get_soms() -> List[int]:
+        Returns the Sites of Metabolism (SoMs) associated with a biochemical reaction.
+"""
+
 
 from collections import Counter
 from datetime import datetime
+from typing import List
+
+import networkx as nx
+import numpy as np
 from networkx.algorithms import isomorphism
 from rdkit.Chem import (
-    FragmentOnBonds, 
-    GetMolFrags, 
-    Mol, 
-    MolFromSmarts, 
-    MolFromSmiles, 
-    rdFingerprintGenerator, 
-    rdFMCS, 
+    FragmentOnBonds,
+    GetMolFrags,
+    Mol,
+    MolFromSmarts,
+    MolFromSmiles,
+    rdFingerprintGenerator,
+    rdFMCS,
     rdMolDescriptors,
 )
 from rdkit.DataStructs import TanimotoSimilarity
 
 
 class SOMFinder:
+    """
+    SOMFinder is a class designed to identify Sites of Metabolism (SoMs) in chemical reactions.
+
+    Attributes:
+        substrate (RDKit Mol): The substrate molecule.
+        metabolite (RDKit Mol): The metabolite molecule.
+        substrate_id (int): Identifier for the substrate.
+        metabolite_id (int): Identifier for the metabolite.
+        logger_path (str): Path to the log file.
+        filter_size (int): Size of the filter used in the analysis.
+        params (rdFMCS.MCSParameters): Parameters for the Maximum Common Substructure (MCS) search.
+        soms (List[int]): List of identified Sites of Metabolism (SoMs).
+        mapping (dict): Mapping of atom indices between substrate and metabolite.
+
+    Methods:
+        _initialize_mcs_params(): Initialize the MCS parameters.
+        count_elements(mol: Mol) -> dict: Count the number of atoms of each element in a molecule.
+        detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool: Detects reactions consisting in the oxidation of a halogen to a hydroxy group.
+        equal_number_halogens(mol1: Mol, mol2: Mol) -> bool: Check if two molecules have the same number of halogens.
+        is_substructure(query: Mol, target: Mol) -> bool: Check if the query is a substructure of the target.
+        mol_to_nx(mol: Mol) -> nx.Graph: Convert an RDKit molecule to a NetworkX graph.
+        log(message: str) -> None: Log a message to a text file.
+        _initialize_atom_notes() -> None: Initialize the atom note properties for the substrate and the metabolite.
+        _handle_glutathione_conjugation() -> bool: Annotate SoMs for glutathione conjugation.
+        _handle_halogen_to_hydroxy() -> bool: Annotate SoMs for halogen to hydroxy oxidations.
+        _handle_simple_addition() -> bool: Annotate SoMs for simple addition reactions.
+        _handle_simple_elimination() -> bool: Annotate SoMs for simple elimination reactions.
+        _handle_redox_reaction() -> bool: Annotate SoMs for redox reactions.
+    """
+
     def __init__(
         self,
         substrate,
@@ -126,13 +203,10 @@ class SOMFinder:
         for atom in mol2.GetAtoms():
             if atom.GetAtomicNum() in [9, 17, 35, 53]:
                 num_halogens2 += 1
-        if num_halogens1 == num_halogens2:
-            return True
-        else:
-            return False
+        return bool(num_halogens1 == num_halogens2)
 
     @staticmethod
-    def is_substructure(query, target):
+    def is_substructure(query: Mol, target: Mol) -> bool:
         """
         Check if the query is a substructure of the target.
 
@@ -154,16 +228,16 @@ class SOMFinder:
             mol (RDKit Mol): Molecule to convert.
 
         Returns:
-            G (NetworkX Graph): Graph representation of the molecule.
+            mol_graph (NetworkX Graph): Graph representation of the molecule.
         """
-        G = nx.Graph()
+        mol_graph = nx.Graph()
         for atom in mol.GetAtoms():
-            G.add_node(atom.GetIdx(), atomic_num=atom.GetAtomicNum())
+            mol_graph.add_node(atom.GetIdx(), atomic_num=atom.GetAtomicNum())
         for bond in mol.GetBonds():
-            G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
-        return G
+            mol_graph.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        return mol_graph
 
-    def log(self, message):
+    def log(self, message: str) -> None:
         """
         Log a message to a text file.
 
@@ -173,10 +247,10 @@ class SOMFinder:
         Returns:
             None
         """
-        with open(self.logger_path, "a+") as f:
+        with open(self.logger_path, "a+", encoding="utf-8") as f:
             f.write(f"{datetime.now()} {message}\n")
 
-    def _initialize_atom_notes(self):
+    def _initialize_atom_notes(self) -> None:
         """
         Initialize the atom note properties for the substrate and the metabolite.
         """
@@ -185,7 +259,7 @@ class SOMFinder:
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
 
-    def _handle_glutathione_conjugation(self):
+    def _handle_glutathione_conjugation(self) -> bool:
         """
         Annotate SoMs for glutathione conjugation.
 
@@ -246,9 +320,7 @@ class SOMFinder:
                 highlights_target = non_glutathione_fragment.GetSubstructMatch(
                     mcs.queryMol
                 )
-                self.mapping = {
-                    i: j for i, j in zip(highlights_query, highlights_target)
-                }
+                self.mapping = dict(zip(highlights_query, highlights_target))
                 # Find the index of the som_idx_in_metabolite in the fragment that does not contain the glutathione moiety
                 som_idx_in_fragment = [self.mapping[som_idx_in_metabolite]][0]
                 # Find a mapping between the atoms in the non-glutathione fragment and the atoms in the substrate
@@ -265,19 +337,17 @@ class SOMFinder:
                     mcs.queryMol
                 )
                 highlights_target = self.substrate.GetSubstructMatch(mcs.queryMol)
-                self.mapping = {
-                    i: j for i, j in zip(highlights_query, highlights_target)
-                }
+                self.mapping = dict(zip(highlights_query, highlights_target))
                 # Find the index of the som_idx_in_fragment in the substrate
                 self.soms = [self.mapping[som_idx_in_fragment]]
                 self.log("Glutathione conjugation successful.")
                 return True
-            else:
-                return False
-        except:
+            return False
+        except (ValueError, KeyError, AttributeError) as e:
+            self.log(f"Error: {str(e)}")
             return False
 
-    def _handle_halogen_to_hydroxy(self):
+    def _handle_halogen_to_hydroxy(self) -> bool:
         """
         Annotate SoMs for halogen to hydroxy oxidations.
 
@@ -296,9 +366,7 @@ class SOMFinder:
             )  # Reset the bond type comparison to the default
             highlights_substrate = self.substrate.GetSubstructMatch(mcs.queryMol)
             highlights_metabolite = self.metabolite.GetSubstructMatch(mcs.queryMol)
-            self.mapping = {
-                i: j for i, j in zip(highlights_substrate, highlights_metabolite)
-            }
+            self.mapping = dict(zip(highlights_substrate, highlights_metabolite))
             # Find the halogen atom in the substrate that is not in the metabolite
             for atom_id in self.substrate.GetSubstructMatch(
                 MolFromSmarts("[F,Cl,Br,I]")
@@ -315,12 +383,13 @@ class SOMFinder:
             self.soms = [halogen_atom_neighbor_id]
             self.log("Halogen to hydroxy oxidation successful.")
             return True
-        except:
+        except (ValueError, KeyError, AttributeError) as e:
+            self.log(f"Error: {str(e)}")
             return False
 
-    def _handle_simple_addition(self):
+    def _handle_simple_addition(self) -> bool:
         """
-        Check for simple addition reactions.
+        Annotate SoMs for simple addition reactions.
 
         Returns:
             bool: True if a simple addition reaction is found, False otherwise.
@@ -334,10 +403,7 @@ class SOMFinder:
                 mcs = rdFMCS.FindMCS([query, target], self.params)
                 highlights_query = query.GetSubstructMatch(mcs.queryMol)
                 highlights_target = target.GetSubstructMatch(mcs.queryMol)
-                self.mapping = {
-                    i: j for i, j in zip(highlights_target, highlights_query)
-                }
-
+                self.mapping = dict(zip(highlights_target, highlights_query))
                 unmatched_atoms = [
                     atom
                     for atom in target.GetAtoms()
@@ -374,13 +440,14 @@ class SOMFinder:
                     self.log("Carnitine addition detected. Corrected SoMs.")
 
                 return True
-            except:
-                self.log("Simple addition matching failed.")
+            except (ValueError, KeyError, AttributeError) as e:
+                self.log(f"Simple addition matching failed. Error: {str(e)}")
+                return False
         return False
 
-    def _handle_simple_elimination(self):
+    def _handle_simple_elimination(self) -> bool:
         """
-        Check for simple elimination reactions.
+        Annotate SoMs for simple elimination reactions.
 
         Returns:
             bool: True if a simple elimination reaction is found, False otherwise.
@@ -593,20 +660,21 @@ class SOMFinder:
                                 )
                             )
                             & (atom.GetAtomicNum() == 6)
-                            & (atom.GetIsAromatic() == False)
+                            & (atom.GetIsAromatic() is False)
                         ]
                         self.soms = corrected_soms
                         self.log("1,3-Dioxolane ring opening detected. Corrected SoMs.")
 
                 self.log("Simple elimination successful.")
                 return True
-            except:
-                self.log("Simple elimination matching failed.")
+            except (ValueError, KeyError, AttributeError) as e:
+                self.log(f"Simple elimination matching failed. Error: {str(e)}")
+                return False
         return False
 
-    def _handle_redox_reaction(self):
+    def _handle_redox_reaction(self) -> bool:
         """
-        Check for redox reactions.
+        Annotate SoMs for redox reactions.
 
         Returns:
             bool: True if a redox reaction is found, False otherwise.
@@ -660,26 +728,30 @@ class SOMFinder:
 
                                     return True
                             except KeyError:
-                                self.log("Redox matching failed -- KeyError.")
+                                self.log("Redox matching failed.")
                                 return False
             else:
                 self.log("Redox matching failed.")
         return False
 
-    def _handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching(self):
+    def _handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching(
+        self,
+    ) -> bool:
         """
-        Check for complex non-redox reactions using subgraph isomorphism matching.
+        Annotate SoMs for complex non-redox reactions using subgraph isomorphism matching.
 
         Returns:
             bool: True if a complex non-redox reaction is found, False otherwise.
         """
 
-        GS = self.mol_to_nx(self.substrate)
-        GM = self.mol_to_nx(self.metabolite)
+        mol_graph_substrate = self.mol_to_nx(self.substrate)
+        mol_graph_metabolite = self.mol_to_nx(self.metabolite)
 
         # Check if the substrate is a subgraph of the metabolite or vice versa
         graph_matching = isomorphism.GraphMatcher(
-            GS, GM, node_match=isomorphism.categorical_node_match(["atomic_num"], [0])
+            mol_graph_substrate,
+            mol_graph_metabolite,
+            node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
         )
         if graph_matching.is_isomorphic():
             self.log(
@@ -689,8 +761,8 @@ class SOMFinder:
             already_matched_metabolite_atom_indices = set(self.mapping.values())
         else:
             graph_matching = isomorphism.GraphMatcher(
-                GM,
-                GS,
+                mol_graph_metabolite,
+                mol_graph_substrate,
                 node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
             )
             if graph_matching.is_isomorphic():
@@ -721,7 +793,7 @@ class SOMFinder:
                     already_matched_metabolite_atom_indices.add(
                         first_of_remaining_unmapped_ids
                     )
-                except:
+                except IndexError:
                     self.mapping[atom_s.GetIdx()] = -1
 
         # Compute the SoMs by comparing the degree and the atomic numbers of the atoms in the substrate and the metabolite
@@ -735,20 +807,16 @@ class SOMFinder:
                 self.substrate.GetAtomWithIdx(atom_id_s).GetDegree()
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetDegree()
                 or set(
-                    [
-                        neighbor.GetAtomicNum()
-                        for neighbor in self.substrate.GetAtomWithIdx(
-                            atom_id_s
-                        ).GetNeighbors()
-                    ]
+                    neighbor.GetAtomicNum()
+                    for neighbor in self.substrate.GetAtomWithIdx(
+                        atom_id_s
+                    ).GetNeighbors()
                 )
                 != set(
-                    [
-                        neighbor.GetAtomicNum()
-                        for neighbor in self.metabolite.GetAtomWithIdx(
-                            atom_id_m
-                        ).GetNeighbors()
-                    ]
+                    neighbor.GetAtomicNum()
+                    for neighbor in self.metabolite.GetAtomWithIdx(
+                        atom_id_m
+                    ).GetNeighbors()
                 )
                 or self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
@@ -757,9 +825,11 @@ class SOMFinder:
 
         return True
 
-    def _handle_complex_non_redox_reaction_largest_common_subgraph_matching(self):
+    def _handle_complex_non_redox_reaction_largest_common_subgraph_matching(
+        self,
+    ) -> bool:
         """
-        Check for complex non-redox reactions using largest common subgraph matching (maximum common substructure).
+        Annotate SoMs for complex non-redox reactions using largest common subgraph matching (maximum common substructure).
 
         Returns:
             bool: True if a complex non-redox reaction is found, False otherwise.
@@ -775,9 +845,7 @@ class SOMFinder:
             self.log("MCS matching found!")
             highlights_substrate = self.substrate.GetSubstructMatch(mcs.queryMol)
             highlights_metabolite = self.metabolite.GetSubstructMatch(mcs.queryMol)
-            self.mapping = {
-                i: j for i, j in zip(highlights_substrate, highlights_metabolite)
-            }
+            self.mapping = dict(zip(highlights_substrate, highlights_metabolite))
 
             # Map the unmapped atoms in the substrate to the remaining atoms in the metabolite
             # based on the Tanimoto similarity of their Morgan fingerprints
@@ -812,8 +880,7 @@ class SOMFinder:
                             self.mapping[atom_s.GetIdx()] = int(np.argmax(similarities))
                             already_matched_atom_indices.add(np.argmax(similarities))
                             break
-                        else:
-                            similarities[np.argmax(similarities)] = 0
+                        similarities[np.argmax(similarities)] = 0
 
                     # If no atom in the metabolite is assigned to the atom in the substrate, assign the first available atom
                     if self.mapping.get(atom_s.GetIdx()) is None:
@@ -829,7 +896,7 @@ class SOMFinder:
                             already_matched_atom_indices.add(
                                 first_of_remaining_unmapped_ids
                             )
-                        except:
+                        except IndexError:
                             self.mapping[atom_s.GetIdx()] = -1
 
             # Compute the SoMs by comparing the degree and the atomic numbers of the atoms in the substrate and the metabolite
@@ -843,20 +910,16 @@ class SOMFinder:
                     self.substrate.GetAtomWithIdx(atom_id_s).GetDegree()
                     != self.metabolite.GetAtomWithIdx(atom_id_m).GetDegree()
                     or set(
-                        [
-                            neighbor.GetAtomicNum()
-                            for neighbor in self.substrate.GetAtomWithIdx(
-                                atom_id_s
-                            ).GetNeighbors()
-                        ]
+                        neighbor.GetAtomicNum()
+                        for neighbor in self.substrate.GetAtomWithIdx(
+                            atom_id_s
+                        ).GetNeighbors()
                     )
                     != set(
-                        [
-                            neighbor.GetAtomicNum()
-                            for neighbor in self.metabolite.GetAtomWithIdx(
-                                atom_id_m
-                            ).GetNeighbors()
-                        ]
+                        neighbor.GetAtomicNum()
+                        for neighbor in self.metabolite.GetAtomWithIdx(
+                            atom_id_m
+                        ).GetNeighbors()
                     )
                     or self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
                     != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
@@ -866,10 +929,8 @@ class SOMFinder:
             # Add an exception for the reduction of nitro groups
             if len(self.soms) == 3:
                 if set(
-                    [
-                        self.substrate.GetAtomWithIdx(som).GetAtomicNum()
-                        for som in self.soms
-                    ]
+                    self.substrate.GetAtomWithIdx(som).GetAtomicNum()
+                    for som in self.soms
                 ) == {6, 7, 8}:
                     corrected_nitro_soms = [
                         som
@@ -917,15 +978,12 @@ class SOMFinder:
                 ]
                 self.soms = corrected_soms_oxacyclopropane
                 self.log("Oxacyclopropane hydrolysis detected. Corrected SoMs.")
-
             return True
+        return False
 
-        else:
-            return False
-
-    def find_soms(self):
+    def find_soms(self) -> List[int]:
         """
-        Find the SoMs in the substrate and the metabolite.
+        Find and annotate Sites of Metabolism (SoMs) in chemical reactions.
 
         Returns:
             soms (List[int]): List of SoMs.
@@ -943,15 +1001,13 @@ class SOMFinder:
             self.log("Glutathione detected.")
             if self._handle_glutathione_conjugation():
                 return sorted(self.soms)
-            else:
-                self.log("Glutathione conjugation matching failed.")
+            self.log("Glutathione conjugation matching failed.")
 
         if self.detect_halogen_to_hydroxy(self.substrate, self.metabolite):
             self.log("Halogen to hydroxy detected.")
             if self._handle_halogen_to_hydroxy():
                 return sorted(self.soms)
-            else:
-                self.log("Halogen to hydroxy matching failed.")
+            self.log("Halogen to hydroxy matching failed.")
 
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             self.log(
@@ -959,8 +1015,7 @@ class SOMFinder:
             )
             if self._handle_simple_addition():
                 return sorted(self.soms)
-            else:
-                self.log("No simple addition found.")
+            self.log("No simple addition found.")
 
         elif self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
             self.log(
@@ -968,8 +1023,7 @@ class SOMFinder:
             )
             if self._handle_simple_elimination():
                 return sorted(self.soms)
-            else:
-                self.log("No simple elimination found.")
+            self.log("No simple elimination found.")
 
         else:
             if self.equal_number_halogens(self.substrate, self.metabolite):
@@ -986,8 +1040,7 @@ class SOMFinder:
                     return sorted(self.soms)
                 if self._handle_redox_reaction():
                     return sorted(self.soms)
-                else:
-                    self.log("No simple redox reaction found.")
+                self.log("No simple redox reaction found.")
 
         self.log(
             "Complex non-redox reaction. Checking for global subgraph isomorphism matching..."
@@ -997,24 +1050,20 @@ class SOMFinder:
         ):
             return sorted(self.soms)
 
-        else:
+        self.log(
+            "No global subgraph isomorphism matching found. Checking for largest common subgraph matching..."
+        )
+        if (
+            self.substrate.GetNumHeavyAtoms() > self.filter_size
+            or self.metabolite.GetNumHeavyAtoms() > self.filter_size
+        ):
             self.log(
-                "No global subgraph isomorphism matching found. Checking for largest common subgraph matching..."
+                "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found."
             )
-            if (
-                self.substrate.GetNumHeavyAtoms() > self.filter_size
-                or self.metabolite.GetNumHeavyAtoms() > self.filter_size
-            ):
-                self.log(
-                    "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found."
-                )
-                return sorted(self.soms)
-            if (
-                self._handle_complex_non_redox_reaction_largest_common_subgraph_matching()
-            ):
-                return sorted(self.soms)
-            else:
-                self.log("No partial graph matching matching found.")
+            return sorted(self.soms)
+        if self._handle_complex_non_redox_reaction_largest_common_subgraph_matching():
+            return sorted(self.soms)
+        self.log("No partial graph matching matching found.")
 
         self.log("No SoMs found.")
         return sorted(self.soms)
@@ -1022,9 +1071,9 @@ class SOMFinder:
 
 def get_soms(
     substrate, metabolite, substrate_id, metabolite_id, logger_path, filter_size
-):
+) -> List[int]:
     """
-    Find the SoMs in the substrate and the metabolite.
+    Returns the Sites of Metabolism (SoMs) associated with a biochemical reaction.
 
     Args:
         substrate (RDKit Mol): Substrate molecule.

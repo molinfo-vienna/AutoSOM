@@ -1,25 +1,87 @@
+"""
+This script predicts Sites of Metabolism (SoMs) for unseen data using pairs of 
+molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
+
+The script performs the following steps:
+1. Parses command-line arguments to get input and output paths, input data type, and filter size.
+2. Reads the input data from a CSV file.
+3. Ensures necessary columns are present in the data.
+4. Converts molecular structures from InChI or SMILES to RDKit Mol objects.
+5. Curates the data and predicts SoMs for each reaction.
+6. Symmetrizes the predicted SoMs.
+7. Outputs the annotated data to SDF files.
+8. Merges all SoMs from the same substrates and outputs the merged data to a single SDF file.
+
+Command-line arguments:
+    -i, --inputPath: str, required
+        The path to the input data.
+    -o, --outputPath: str, required
+        The path for the output data.
+    -t, --type: str, required
+        The type of input data. Choose between "inchi" and "smiles".
+    -f, --filter_size: int, optional, default=30
+        The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.
+        The runtime can get very high for large molecules.
+
+Example usage:
+    python run.py -i input.csv -o output/ -t smiles -f 30
+"""
+
 import argparse
-import numpy as np
 import os
-import pandas as pd
 import shutil
+
+import numpy as np
+import pandas as pd
+from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 from tqdm import tqdm
 
-from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
-
 from src.soman import get_soms
-from src.utils import (
-    concat_lists,
-    curate_data,
-    standardize_data,
-    symmetrize_soms,
-)
+from src.utils import concat_lists, curate_data, symmetrize_soms  # standardize_data,
 
 np.random.seed(seed=42)
 tqdm.pandas()
 
 
-def run():
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Predicting SoMs for unseen data.")
+
+    parser.add_argument(
+        "-i",
+        "--inputPath",
+        type=str,
+        required=True,
+        help="The path to the input data.",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--outputPath",
+        type=str,
+        required=True,
+        help="The path for the output data.",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--type",
+        type=str,
+        required=True,
+        help='The type of input data. Choose between "inchi" and "smiles".',
+    )
+
+    parser.add_argument(
+        "-f",
+        "--filter_size",
+        type=int,
+        required=False,
+        default=30,
+        help="The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
+              The runtime can get very high for large molecules.",
+    )
+
+    args = parser.parse_args()
+
     if os.path.exists(args.outputPath):
         shutil.rmtree(args.outputPath)
     os.makedirs(args.outputPath)
@@ -36,11 +98,11 @@ def run():
         data["metabolite_name"] = "n.a."
 
     if args.type == "inchi":
-        data["substrate_mol"] = data.iloc[:, 0].map(lambda x: MolFromInchi(x))
-        data["metabolite_mol"] = data.iloc[:, 1].map(lambda x: MolFromInchi(x))
+        data["substrate_mol"] = data.iloc[:, 0].map(MolFromInchi)
+        data["metabolite_mol"] = data.iloc[:, 1].map(MolFromInchi)
     elif args.type == "smiles":
-        data["substrate_mol"] = data.iloc[:, 0].map(lambda x: MolFromSmiles(x))
-        data["metabolite_mol"] = data.iloc[:, 1].map(lambda x: MolFromSmiles(x))
+        data["substrate_mol"] = data.iloc[:, 0].map(MolFromSmiles)
+        data["metabolite_mol"] = data.iloc[:, 1].map(MolFromSmiles)
     else:
         raise ValueError("Invalid type argument.")
 
@@ -103,7 +165,7 @@ def run():
     # One substrate can undergo multiple reactions, leading to multiple metabolites.
     # This step merges all the soms from the same substrate and outputs the data in a single SDF file.
 
-    data["substrate_inchi"] = data.substrate_mol.map(lambda x: MolToInchi(x))
+    data["substrate_inchi"] = data.substrate_mol.map(MolToInchi)
     data_grouped = data.groupby("substrate_inchi", as_index=False).agg(
         {"soms": concat_lists, "substrate_id": list}
     )
@@ -123,44 +185,3 @@ def run():
     print(
         f"Average number of soms per compound: {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}"
     )
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Predicting SoMs for unseen data.")
-
-    parser.add_argument(
-        "-i",
-        "--inputPath",
-        type=str,
-        required=True,
-        help="The path to the input data.",
-    )
-
-    parser.add_argument(
-        "-o",
-        "--outputPath",
-        type=str,
-        required=True,
-        help="The path for the output data.",
-    )
-
-    parser.add_argument(
-        "-t",
-        "--type",
-        type=str,
-        required=True,
-        help='The type of input data. Choose between "inchi" and "smiles".',
-    )
-
-    parser.add_argument(
-        "-f",
-        "--filter_size",
-        type=int,
-        required=False,
-        default=30,
-        help="The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
-              The runtime can get very high for large molecules.",
-    )
-
-    args = parser.parse_args()
-    run()

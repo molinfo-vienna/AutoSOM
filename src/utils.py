@@ -1,10 +1,25 @@
-import pandas as pd
+"""
+This module provides utility functions for processing and curating molecular data using RDKit and pandas. The functions include:
+
+- _find_symmetry_groups(mol: Mol): Identifies symmetry groups in a molecule.
+- _set_allowed_elements_flag(mol: Mol): Checks if a molecule contains only allowed chemical elements.
+- _standardize_row(row: pd.Series): Standardizes a row of a DataFrame containing substrate and metabolite molecules.
+- concat_lists(lst: List): Concatenates a list of lists into a single list.
+- curate_data(data: pd.DataFrame): Curates molecular data according to specific rules.
+- standardize_data(data: pd.DataFrame): Standardizes molecular data using the ChEMBL standardizer.
+- symmetrize_soms(mol: Mol, soms: List[int]): Adds all atoms in a symmetry group to the list of Sites of Metabolism (SoMs) if any atom in the group is already a SoM.
+
+The module also defines a set of allowed atoms for chemical elements and imports necessary libraries for molecular processing.
+"""
+
 
 from collections import defaultdict
-from rdkit.Chem import Mol, MolToInchi, rdMolDescriptors
-from rdkit.Chem.MolStandardize import rdMolStandardize
+
 from typing import List
 
+import pandas as pd
+from rdkit.Chem import Mol, MolToInchi, rdMolDescriptors
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 ALLOWED_ATOMS = {
     1,  # H
@@ -51,14 +66,13 @@ def _set_allowed_elements_flag(mol: Mol) -> int:
         int: 1 if the molecule contains only allowed chemical elements, 0 otherwise.
     """
 
-    atomNrs = set()
+    atom_counts = set()
     for atom in mol.GetAtoms():
-        atomNrs.add(atom.GetAtomicNum())
-        notAllowedAtomsInMolecule = atomNrs - ALLOWED_ATOMS
-    if len(notAllowedAtomsInMolecule) != 0:
+        atom_counts.add(atom.GetAtomicNum())
+        unallowed_atoms_count = atom_counts - ALLOWED_ATOMS
+    if len(unallowed_atoms_count) != 0:
         return 0
-    else:
-        return 1
+    return 1
 
 
 def _standardize_row(row: pd.Series) -> pd.Series:
@@ -114,8 +128,8 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
 
     # Filter out reactions with missing InChI
     data_size = len(data)
-    data["substrate_inchi"] = data["substrate_mol"].map(lambda x: MolToInchi(x))
-    data["metabolite_inchi"] = data["metabolite_mol"].map(lambda x: MolToInchi(x))
+    data["substrate_inchi"] = data["substrate_mol"].map(MolToInchi)
+    data["metabolite_inchi"] = data["metabolite_mol"].map(MolToInchi)
     data = data.dropna(subset=["substrate_inchi", "metabolite_inchi"])
     print(
         f"Removed {data_size - len(data)} reactions with missing InChI. Data set now contains {len(data)} reactions."
@@ -140,10 +154,10 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
 
     # Filter out reactions with molecular mass above 1000 Da
     data["substrate_molecular_weight"] = data["substrate_mol"].map(
-        lambda x: rdMolDescriptors.CalcExactMolWt(x)
+        rdMolDescriptors.CalcExactMolWt
     )
     data["metabolite_molecular_weight"] = data["metabolite_mol"].map(
-        lambda x: rdMolDescriptors.CalcExactMolWt(x)
+        rdMolDescriptors.CalcExactMolWt
     )
     data = data[
         (data.substrate_molecular_weight <= 1000)
@@ -241,6 +255,15 @@ def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def symmetrize_soms(mol: Mol, soms: List[int]) -> List[int]:
+    """Adds all atoms in a symmetry group to the list of SoMs, if any atom in the group is already a SoM.
+
+    Args:
+        mol (Mol): RDKit molecule
+        soms (List[int]): list of atom indices of the already found SoMs
+
+    Returns:
+        List[int]: updated list of SoMs
+    """
     symmetry_groups = _find_symmetry_groups(mol)
 
     soms_symmetrized = set(soms)
