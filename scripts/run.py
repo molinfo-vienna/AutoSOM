@@ -158,8 +158,8 @@ if __name__ == "__main__":
         type=int,
         required=False,
         default=30,
-        help='The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
-              The runtime can get very high for large molecules.',
+        help="The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
+              The runtime can get very high for large molecules.",
     )
 
     args = parser.parse_args()

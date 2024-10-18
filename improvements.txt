@@ -22,3 +22,8 @@ TODO (after discussion on 11.10.24)
 6)  Try and make the output more verbose (log file is not enough)
 7)  Clarify multi-steps reactions; it will probably never be possible to handle those.
 8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
+
+Current state:
+    number of annotated reactions: 5048
+    percentage of full match: 0.85
+    perecentage of partial match: 0.93
