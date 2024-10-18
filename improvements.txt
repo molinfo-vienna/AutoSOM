@@ -1,4 +1,4 @@
-1)  Implemented exception for glutathione. Concerns 129 reactions in the MetaQSAR dataset.
+1)  Implemented exception for glutathione. Concerns 328 reactions in the MetaQSAR dataset.
     This case is now taken care of right at the beginning of the pipeline as a separate category.
         TODO:   There are a few cases of class 104 where the glutathione "replaces" and halogen. 
                 The labels are inconsistent. The annotator sometimes fails to find the ground truth.
@@ -6,7 +6,7 @@
 
 2)  Moved the molecular weight filter to the critical part of the algorithm (MCS matching and simple redox reactions),
     so that other parts of the algorithm which are not too affected by the size of the molecules can run without rejection.
-    For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 394,
+    For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 120,
     whithout increasing the runtime by a significant amount.
 
 3) Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
@@ -24,6 +24,9 @@ TODO (after discussion on 11.10.24)
 8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
 
 Current state:
-    number of annotated reactions: 5048
-    percentage of full match: 0.85
-    perecentage of partial match: 0.93
+    number of annotated reactions: 5120
+    number of reactions for which we have a ground truth to compare to: 4405 (need to check what those 715 reactions are)
+    number of reactions filtered out due to being too large (>30): 120
+    number of reactions where the pipeline outputs an error or does not find any SoMs: 17
+    percentage of full match: 0.94
+    perecentage of partial match: 0.96

@@ -101,7 +101,7 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
             row["metabolite_mol"]
         )
-    except :
+    except Exception:
         row["substrate_mol"] = None
         row["metabolite_mol"] = None
 
@@ -139,7 +139,7 @@ def count_elements(mol: Mol) -> dict:
     return element_counts
 
 
-def curate_data(data: pd.DataFrame) -> pd.DataFrame:
+def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     """Curate the data according to a subset of the rules defined in the SoM predictor (AweSOM):
     (1) Compute each compound's InChI. Remove any entries for which an InChI cannot be computed, and entries with identical database-internal molecular identifiers but differing InChI.
     (2) Discard compounds containing any chemical element other than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
@@ -157,8 +157,9 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     data["substrate_inchi"] = data["substrate_mol"].map(MolToInchi)
     data["metabolite_inchi"] = data["metabolite_mol"].map(MolToInchi)
     data = data.dropna(subset=["substrate_inchi", "metabolite_inchi"])
-    print(
-        f"Removed {data_size - len(data)} reactions with missing InChI. Data set now contains {len(data)} reactions."
+    log(
+        logger_path,
+        f"Removed {data_size - len(data)} reactions with missing InChI. Data set now contains {len(data)} reactions.",
     )
     data_size = len(data)
 
@@ -173,8 +174,9 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
         (data.substrate_allowed_elements_flag == 1)
         & (data.metabolite_allowed_elements_flag == 1)
     ]
-    print(
-        f"Chemical element filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+    log(
+        logger_path,
+        f"Chemical element filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
     )
     data_size = len(data)
 
@@ -189,8 +191,9 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
         (data.substrate_molecular_weight <= 1000)
         & (data.metabolite_molecular_weight <= 1000)
     ]
-    print(
-        f"Molecular weight filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+    log(
+        logger_path,
+        f"Molecular weight filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
     )
     data_size = len(data)
 
@@ -204,8 +207,9 @@ def curate_data(data: pd.DataFrame) -> pd.DataFrame:
     data = data[
         (data.substrate_num_heavy_atoms >= 5) & (data.metabolite_num_heavy_atoms >= 5)
     ]
-    print(
-        f"Minimum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+    log(
+        logger_path,
+        f"Minimum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
     )
     data_size = len(data)
 
@@ -334,7 +338,7 @@ def mol_to_graph(mol: Mol) -> nx.Graph:
     return mol_graph
 
 
-def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
+def standardize_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     """
     Standardize the data using the ChEMBL standardizer.
 
@@ -349,8 +353,9 @@ def standardize_data(data: pd.DataFrame) -> pd.DataFrame:
     data = data.apply(_standardize_row, axis=1)
     data = data.dropna(subset=["substrate_mol", "metabolite_mol"])
 
-    print(
-        f"Standardization removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions."
+    log(
+        logger_path,
+        f"Standardization removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
     )
 
     return data

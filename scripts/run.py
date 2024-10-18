@@ -37,7 +37,12 @@ from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 from tqdm import tqdm
 
 from src.soman import SOMFinder
-from src.utils import concat_lists, curate_data, symmetrize_soms  # standardize_data,
+from src.utils import (
+    concat_lists,
+    curate_data,
+    log,
+    symmetrize_soms,
+)  # standardize_data,
 
 np.random.seed(seed=42)
 tqdm.pandas()
@@ -82,6 +87,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    logger_path = os.path.join(args.outputPath, "logs.txt")
+
     if os.path.exists(args.outputPath):
         shutil.rmtree(args.outputPath)
     os.makedirs(args.outputPath)
@@ -113,10 +120,10 @@ if __name__ == "__main__":
         },
         inplace=True,
     )
-    print(f"Data set contains {len(data)} reactions.")
+    log(logger_path, f"Data set contains {len(data)} reactions.")
 
-    data = curate_data(data)
-    # data = standardize_data(data)
+    data = curate_data(data, logger_path)
+    # data = standardize_data(data, logger_path)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
     data["soms"] = data.progress_apply(
@@ -125,7 +132,7 @@ if __name__ == "__main__":
             x.metabolite_mol,
             x.substrate_id,
             x.metabolite_id,
-            logger_path=os.path.join(args.outputPath, "logs.txt"),
+            logger_path,
             filter_size=args.filter_size,
         ).get_soms(),
         axis=1,
@@ -182,6 +189,7 @@ if __name__ == "__main__":
         properties=["substrate_id", "substrate_name", "soms"],
     )
 
-    print(
-        f"Average number of soms per compound: {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}"
+    log(
+        logger_path,
+        f"Average number of soms per compound: {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}",
     )

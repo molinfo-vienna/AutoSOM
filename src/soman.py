@@ -35,6 +35,7 @@ from rdkit.Chem import (
     GetMolFrags,
     MolFromSmarts,
     MolFromSmiles,
+    # MolToSmiles,
     rdFingerprintGenerator,
     rdFMCS,
 )
@@ -115,12 +116,32 @@ class SOMFinder:
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
 
+    def _is_glutathione_conjugation(self) -> bool:
+        """Check if the reaction is a glutathione conjugation."""
+        glutathione_smiles = "C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N"
+        return self.metabolite.HasSubstructMatch(
+            MolFromSmiles(glutathione_smiles)
+        ) and not self.substrate.HasSubstructMatch(MolFromSmiles(glutathione_smiles))
+
+    def _is_too_large_to_process(self) -> bool:
+        """Check if the substrate or metabolite is too large for further processing."""
+        if (
+            self.substrate.GetNumHeavyAtoms() > self.filter_size
+            or self.metabolite.GetNumHeavyAtoms() > self.filter_size
+        ):
+            log(
+                self.logger_path,
+                "Substrate or metabolite too large for processing. No SoMs found.",
+            )
+            return True
+        return False
+
     def _handle_glutathione_conjugation(self) -> bool:
         """
         Annotate SoMs for glutathione conjugation.
 
         Returns:
-            bool: True if annotation is succesfull, False otherwise.
+            bool: True if annotation is successful, False otherwise.
         """
         try:
             glutathione_atom_idx = self.metabolite.GetSubstructMatch(
@@ -200,7 +221,7 @@ class SOMFinder:
                 return True
             return False
         except (ValueError, KeyError, AttributeError) as e:
-            log(self.logger_path, f"Error: {str(e)}")
+            log(self.logger_path, f"Glutathione conjugation failed. Error: {str(e)}")
             return False
 
     def _handle_halogen_to_hydroxy(self) -> bool:
@@ -208,7 +229,7 @@ class SOMFinder:
         Annotate SoMs for halogen to hydroxy oxidations.
 
         Returns:
-            bool: True if annotation is succesfull, False otherwise.
+            bool: True if annotation is successful, False otherwise.
         """
         try:
             # Match the indices of the atoms in the substrate and the metabolite
@@ -551,7 +572,7 @@ class SOMFinder:
                         self.soms = corrected_soms
                         log(
                             self.logger_path,
-                            "1,3-Dioxolane ring opening detected. Corrected SoMs.",
+                            "1,3-dioxolane ring opening detected. Corrected SoMs.",
                         )
 
                 log(self.logger_path, "Simple elimination successful.")
@@ -655,7 +676,7 @@ class SOMFinder:
         if graph_matching.is_isomorphic():
             log(
                 self.logger_path,
-                "Full graph matching found! Metabolite is an isomorphic subgraph of the substrate.",
+                "Global graph matching found! Metabolite is an isomorphic subgraph of the substrate.",
             )
             self.mapping = graph_matching.mapping
             already_matched_metabolite_atom_indices = set(self.mapping.values())
@@ -668,15 +689,12 @@ class SOMFinder:
             if graph_matching.is_isomorphic():
                 log(
                     self.logger_path,
-                    "Full graph matching found! Substrate is an isomorphic subgraph of the metabolite.",
+                    "Global graph matching found! Substrate is an isomorphic subgraph of the metabolite.",
                 )
                 self.mapping = graph_matching.mapping
                 already_matched_metabolite_atom_indices = set(self.mapping.keys())
             else:
-                log(
-                    self.logger_path,
-                    "No full graph matching found. Moving on to partial graph matching...",
-                )
+                log(self.logger_path, "No global graph matching found.")
                 return False
 
         # Check if the mapping is complete
@@ -724,7 +742,7 @@ class SOMFinder:
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
             )
         ]
-
+        log(self.logger_path, "Global graph matching successful.")
         return True
 
     def _handle_complex_non_redox_reaction_largest_common_subgraph_matching(
@@ -737,7 +755,7 @@ class SOMFinder:
             bool: True if a complex non-redox reaction is found, False otherwise.
         """
 
-        log(self.logger_path, "Checking for partial graph matching...")
+        log(self.logger_path, "Checking for partial graph matching")
 
         params = self.params
         params.BondTyper = rdFMCS.BondCompare.CompareAny
@@ -883,8 +901,59 @@ class SOMFinder:
                     self.logger_path,
                     "Oxacyclopropane hydrolysis detected. Corrected SoMs.",
                 )
+            log(self.logger_path, "MCS matching successful.")
             return True
+        log(self.logger_path, "MCS matching failed.")
         return False
+
+    def _log_initial_reaction_info(self) -> None:
+        """Logs the initial reaction information."""
+        log(
+            self.logger_path,
+            f"Substrate ID: {self.substrate_id}, Metabolite ID: {self.metabolite_id}",
+        )
+
+    def _handle_and_return_soms(self, handler_method, reaction_type: str) -> List[int]:
+        """Try to handle a specific reaction type and return SoMs if successful."""
+        log(self.logger_path, f"{reaction_type} detected.")
+        if handler_method():
+            return sorted(self.soms)
+        log(self.logger_path, f"{reaction_type} matching failed.")
+        return []
+
+    def _handle_failure(self) -> List[int]:
+        """Handle the case where no specific reaction type was detected."""
+        log(self.logger_path, "SoM matching failed.")
+        return sorted(self.soms)
+
+    def _handle_complex_reaction(self) -> List[int]:
+        """Handle reactions where the substrate and metabolite have an equal number of halogens."""
+        log(self.logger_path, "Complex reaction detected. Possibly a redox reaction.")
+        if self._is_too_large_to_process():
+            return []
+
+        if self._handle_redox_reaction():
+            return sorted(self.soms)
+
+        log(self.logger_path, "No redox reaction detected.")
+        return self._handle_complex_non_redox_case()
+
+    def _handle_complex_non_redox_case(self) -> List[int]:
+        """Handle complex non-redox reactions."""
+        log(self.logger_path, "Attempting global subgraph isomorphism matching.")
+        if (
+            self._handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching()
+        ):
+            return sorted(self.soms)
+
+        log(self.logger_path, "Attempting maximum common substructure (MCS) matching.")
+        if self._is_too_large_to_process():
+            return []
+
+        if self._handle_complex_non_redox_reaction_largest_common_subgraph_matching():
+            return sorted(self.soms)
+
+        return self._handle_failure()
 
     def get_soms(self) -> List[int]:
         """
@@ -893,90 +962,37 @@ class SOMFinder:
         Returns:
             soms (List[int]): List of SoMs.
         """
-        self._initialize_atom_notes()
-        log(
-            self.logger_path,
-            f"Substrate ID: {self.substrate_id}, metabolite ID: {self.metabolite_id}",
-        )
+        # self.substrate = MolFromSmiles(
+        #     MolToSmiles(self.substrate, isomericSmiles=False)
+        # )
+        # self.metabolite = MolFromSmiles(
+        #     MolToSmiles(self.metabolite, isomericSmiles=False)
+        # )
 
-        if self.metabolite.HasSubstructMatch(
-            MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")
-        ) and not self.substrate.HasSubstructMatch(
-            MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")
-        ):
-            log(self.logger_path, "Glutathione detected.")
-            if self._handle_glutathione_conjugation():
-                return sorted(self.soms)
-            log(self.logger_path, "Glutathione conjugation matching failed.")
+        self._initialize_atom_notes()
+        self._log_initial_reaction_info()
+
+        if self._is_glutathione_conjugation():
+            return self._handle_and_return_soms(
+                self._handle_glutathione_conjugation, "Glutathione conjugation"
+            )
 
         if detect_halogen_to_hydroxy(self.substrate, self.metabolite):
-            log(self.logger_path, "Halogen to hydroxy detected.")
-            if self._handle_halogen_to_hydroxy():
-                return sorted(self.soms)
-            log(self.logger_path, "Halogen to hydroxy matching failed.")
+            return self._handle_and_return_soms(
+                self._handle_halogen_to_hydroxy, "Halogen to hydroxy"
+            )
 
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
-            log(
-                self.logger_path,
-                "Substrate has less heavy atoms than the metabolite. Checking for simple addition...",
+            return self._handle_and_return_soms(
+                self._handle_simple_addition, "Simple addition"
             )
-            if self._handle_simple_addition():
-                return sorted(self.soms)
-            log(self.logger_path, "No simple addition found.")
 
-        elif self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
-            log(
-                self.logger_path,
-                "Substrate has more heavy atoms than the metabolite. Checking for simple elimination...",
+        if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
+            return self._handle_and_return_soms(
+                self._handle_simple_elimination, "Simple elimination"
             )
-            if self._handle_simple_elimination():
-                return sorted(self.soms)
-            log(self.logger_path, "No simple elimination found.")
 
-        else:
-            if equal_number_halogens(self.substrate, self.metabolite):
-                log(
-                    self.logger_path,
-                    "Complex reaction with equal number of heavy atoms and equal number of halogen atoms in substrate and metabolite, i.e. maybe a simple redox reaction.",
-                )
-                if (
-                    self.substrate.GetNumHeavyAtoms() > self.filter_size
-                    or self.metabolite.GetNumHeavyAtoms() > self.filter_size
-                ):
-                    log(
-                        self.logger_path,
-                        "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found.",
-                    )
-                    return sorted(self.soms)
-                if self._handle_redox_reaction():
-                    return sorted(self.soms)
-                log(self.logger_path, "No simple redox reaction found.")
+        if equal_number_halogens(self.substrate, self.metabolite):
+            return self._handle_complex_reaction()
 
-        log(
-            self.logger_path,
-            "Complex non-redox reaction. Checking for global subgraph isomorphism matching...",
-        )
-        if (
-            self._handle_complex_non_redox_reaction_global_subgraph_isomorphism_matching()
-        ):
-            return sorted(self.soms)
-
-        log(
-            self.logger_path,
-            "No global subgraph isomorphism matching found. Checking for largest common subgraph matching...",
-        )
-        if (
-            self.substrate.GetNumHeavyAtoms() > self.filter_size
-            or self.metabolite.GetNumHeavyAtoms() > self.filter_size
-        ):
-            log(
-                self.logger_path,
-                "Substrate or metabolite has more than 30 heavy atoms. Skipping matching. No SoMs found.",
-            )
-            return sorted(self.soms)
-        if self._handle_complex_non_redox_reaction_largest_common_subgraph_matching():
-            return sorted(self.soms)
-        log(self.logger_path, "No partial graph matching matching found.")
-
-        log(self.logger_path, "No SoMs found.")
-        return sorted(self.soms)
+        return self._handle_failure()
