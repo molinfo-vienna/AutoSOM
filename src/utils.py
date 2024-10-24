@@ -1,21 +1,20 @@
-"""
-This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX. The functions include:
+"""This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX.
 
-- `_find_symmetry_groups(mol: Mol)`: Identifies symmetry groups in a molecule.
-- `_set_allowed_elements_flag(mol: Mol)`: Checks if a molecule contains only allowed chemical elements.
-- `_standardize_row(row: pd.Series)`: Standardizes a row of a DataFrame containing substrate and metabolite molecules.
-- `concat_lists(lst: List)`: Concatenates a list of lists into a single list.
-- `count_elements(mol: Mol)`: Counts the number of atoms of each element in a molecule.
-- `curate_data(data: pd.DataFrame)`: Curates the data according to specific rules defined in the SoM predictor (AweSOM).
-- `detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol)`: Detects reactions consisting of the oxidation of a halogen to a hydroxy group.
-- `_is_carbon_count_unchanged(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of carbons remains the same.
-- `_is_halogen_count_decreased(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of halogens decreases by 1.
-- `_is_oxygen_count_increased(substrate_elements: dict, metabolite_elements: dict)`: Checks if the number of oxygens increases by 1.
-- `equal_number_halogens(mol1: Mol, mol2: Mol)`: Checks if two molecules have the same number of halogens.
-- `log(path: str, message: str)`: Logs a message to a text file.
-- `mol_to_graph(mol: Mol)`: Converts an RDKit molecule to a NetworkX graph.
-- `standardize_data(data: pd.DataFrame)`: Standardizes the data using the ChEMBL standardizer.
-- `symmetrize_soms(mol: Mol, soms: List[int])`: Adds all atoms in a symmetry group to the list of SoMs if any atom in the group is already a SoM.
+- _find_symmetry_groups(mol: Mol): Identifies symmetry groups in a molecule.
+- _set_allowed_elements_flag(mol: Mol): Checks if a molecule contains only allowed chemical elements.
+- _standardize_row(row: pd.Series): Standardizes a row of a DataFrame containing substrate and metabolite molecules.
+- concat_lists(lst: List): Concatenates a list of lists into a single list.
+- count_elements(mol: Mol): Counts the number of atoms of each element in a molecule.
+- curate_data(data: pd.DataFrame): Curates the data according to specific rules defined in the SoM predictor (AweSOM).
+- detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol): Detects reactions consisting of the oxidation of a halogen to a hydroxy group.
+- _is_carbon_count_unchanged(substrate_elements: dict, metabolite_elements: dict): Checks if the number of carbons remains the same.
+- _is_halogen_count_decreased(substrate_elements: dict, metabolite_elements: dict): Checks if the number of halogens decreases by 1.
+- _is_oxygen_count_increased(substrate_elements: dict, metabolite_elements: dict): Checks if the number of oxygens increases by 1.
+- equal_number_halogens(mol1: Mol, mol2: Mol): Checks if two molecules have the same number of halogens.
+- log(path: str, message: str): Logs a message to a text file.
+- mol_to_graph(mol: Mol): Converts an RDKit molecule to a NetworkX graph.
+- standardize_data(data: pd.DataFrame): Standardizes the data using the ChEMBL standardizer.
+- symmetrize_soms(mol: Mol, soms: List[int]): Adds all atoms in a symmetry group to the list of SoMs if any atom in the group is already a SoM.
 
 The module also defines a set of allowed atoms for chemical elements and imports necessary libraries.
 """
@@ -26,7 +25,8 @@ from typing import List
 
 import networkx as nx
 import pandas as pd
-from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi, rdMolDescriptors
+from rdkit import Chem
+from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi  # , rdMolDescriptors
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 ALLOWED_ATOMS = {
@@ -46,7 +46,8 @@ ALLOWED_ATOMS = {
 
 
 def _find_symmetry_groups(mol: Mol):
-    """
+    """Identify symmetry groups in a molecule.
+
     Args:
         mol (RDKit Mol)
     Returns:
@@ -64,8 +65,7 @@ def _find_symmetry_groups(mol: Mol):
 
 
 def _set_allowed_elements_flag(mol: Mol) -> int:
-    """
-    Checks if a molecule contains only allowed chemical elements (see ALLOWED_ATOMS).
+    """Check if a molecule contains only allowed chemical elements (see ALLOWED_ATOMS).
 
     Args:
         mol (RDKit Mol): Molecule to check.
@@ -73,25 +73,23 @@ def _set_allowed_elements_flag(mol: Mol) -> int:
     Returns:
         int: 1 if the molecule contains only allowed chemical elements, 0 otherwise.
     """
-
     atom_counts = set()
     for atom in mol.GetAtoms():
         atom_counts.add(atom.GetAtomicNum())
         unallowed_atoms_count = atom_counts - ALLOWED_ATOMS
     if len(unallowed_atoms_count) != 0:
-        return 0
-    return 1
+        return False
+    return True
 
 
 def _standardize_row(row: pd.Series) -> pd.Series:
-    """
-    Standardize a row of the DataFrame containing the substrate and metabolite molecules.
+    """Standardize a dataframe row of the containing the substrate and metabolite molecules.
 
     Args:
-        row (pd.Series): Row of the DataFrame containing the substrate and metabolite molecules.
+        row (pd.Series): Row of the dataframe containing the substrate and metabolite molecules.
 
     Returns:
-        pd.Series: Standardized row of the DataFrame containing the substrate and metabolite molecules.
+        pd.Series: Standardized row of the dataframe containing the substrate and metabolite molecules.
     """
     try:
         row["substrate_mol"] = rdMolStandardize.Cleanup(row["substrate_mol"])
@@ -109,8 +107,7 @@ def _standardize_row(row: pd.Series) -> pd.Series:
 
 
 def concat_lists(lst: List) -> List:
-    """
-    Concatenate a list of lists into a single list.
+    """Concatenate a list of lists into a single list.
 
     Args:
         lst (List): List of lists to concatenate.
@@ -122,8 +119,7 @@ def concat_lists(lst: List) -> List:
 
 
 def count_elements(mol: Mol) -> dict:
-    """
-    Counts the number of atoms of each element in a molecule.
+    """Count the number of atoms of each element in a molecule.
 
     Args:
         mol (RDKit Mol): Molecule to count the elements of.
@@ -140,18 +136,20 @@ def count_elements(mol: Mol) -> dict:
 
 
 def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
-    """Curate the data according to a subset of the rules defined in the SoM predictor (AweSOM):
+    """Curate the data according to a subset of the rules defined in the SoM predictor (AweSOM).
+
+    Rules:
     (1) Compute each compound's InChI. Remove any entries for which an InChI cannot be computed, and entries with identical database-internal molecular identifiers but differing InChI.
     (2) Discard compounds containing any chemical element other than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
     (3) Discard compounds with molecular mass above 1000 Da.
     (4) Discard compounds with fewer than 5 heavy atoms.
+
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
 
     Returns:
         pd.DataFrame: Curated DataFrame containing the substrate and metabolite molecules.
     """
-
     # Filter out reactions with missing InChI
     data_size = len(data)
     data["substrate_inchi"] = data["substrate_mol"].map(MolToInchi)
@@ -171,8 +169,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
         _set_allowed_elements_flag
     )
     data = data[
-        (data.substrate_allowed_elements_flag == 1)
-        & (data.metabolite_allowed_elements_flag == 1)
+        data.substrate_allowed_elements_flag & data.metabolite_allowed_elements_flag
     ]
     log(
         logger_path,
@@ -180,38 +177,38 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     )
     data_size = len(data)
 
-    # Filter out reactions with molecular mass above 1000 Da
-    data["substrate_molecular_weight"] = data["substrate_mol"].map(
-        rdMolDescriptors.CalcExactMolWt
-    )
-    data["metabolite_molecular_weight"] = data["metabolite_mol"].map(
-        rdMolDescriptors.CalcExactMolWt
-    )
-    data = data[
-        (data.substrate_molecular_weight <= 1000)
-        & (data.metabolite_molecular_weight <= 1000)
-    ]
-    log(
-        logger_path,
-        f"Molecular weight filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
-    )
-    data_size = len(data)
+    # # Filter out reactions with molecular mass above 1000 Da
+    # data["substrate_molecular_weight"] = data["substrate_mol"].map(
+    #     rdMolDescriptors.CalcExactMolWt
+    # )
+    # data["metabolite_molecular_weight"] = data["metabolite_mol"].map(
+    #     rdMolDescriptors.CalcExactMolWt
+    # )
+    # data = data[
+    #     (data.substrate_molecular_weight <= 1000)
+    #     & (data.metabolite_molecular_weight <= 1000)
+    # ]
+    # log(
+    #     logger_path,
+    #     f"Molecular weight filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
+    # )
+    # data_size = len(data)
 
-    # Filter out reactions with fewer than 5 heavy atoms
-    data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
-        lambda x: x.GetNumHeavyAtoms()
-    )
-    data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
-        lambda x: x.GetNumHeavyAtoms()
-    )
-    data = data[
-        (data.substrate_num_heavy_atoms >= 5) & (data.metabolite_num_heavy_atoms >= 5)
-    ]
-    log(
-        logger_path,
-        f"Minimum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
-    )
-    data_size = len(data)
+    # # Filter out reactions with fewer than 5 heavy atoms
+    # data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
+    #     lambda x: x.GetNumHeavyAtoms()
+    # )
+    # data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
+    #     lambda x: x.GetNumHeavyAtoms()
+    # )
+    # data = data[
+    #     (data.substrate_num_heavy_atoms >= 5) & (data.metabolite_num_heavy_atoms >= 5)
+    # ]
+    # log(
+    #     logger_path,
+    #     f"Minimum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
+    # )
+    # data_size = len(data)
 
     # Clean up the DataFrame
     data = data.drop(
@@ -220,10 +217,10 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
             "metabolite_inchi",
             "substrate_allowed_elements_flag",
             "metabolite_allowed_elements_flag",
-            "substrate_molecular_weight",
-            "metabolite_molecular_weight",
-            "substrate_num_heavy_atoms",
-            "metabolite_num_heavy_atoms",
+            # "substrate_molecular_weight",
+            # "metabolite_molecular_weight",
+            # "substrate_num_heavy_atoms",
+            # "metabolite_num_heavy_atoms",
         ]
     )
 
@@ -234,8 +231,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
 
 
 def detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool:
-    """
-    Detects reactions consisting in the oxidation of a halogen to a hydroxy group.
+    """Detect reactions consisting in the oxidation of a halogen to a hydroxy group.
 
     Args:
         substrate (Mol)
@@ -283,8 +279,7 @@ def _is_oxygen_count_increased(
 
 
 def equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
-    """
-    Check if two molecules have the same number of halogens.
+    """Check if two molecules have the same number of halogens.
 
     Args:
         mol1 (RDKit Mol): First molecule.
@@ -305,9 +300,39 @@ def equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
     return num_halogens1 == num_halogens2
 
 
-def log(path: str, message: str) -> None:
+def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
+    """Get the order of the bond between two specified atoms.
+
+    Args:
+        molecule: RDKit molecule object.
+        atom_idx1: Index of the first atom.
+        atom_idx2: Index of the second atom.
+    Returns:
+        The bond order (1 for single, 2 for double, 3 for triple, 4 for aromatic).
+        Returns None if no bond exists between the specified atoms.
     """
-    Log a message to a text file.
+    # Get the bond between the specified atoms
+    bond = molecule.GetBondBetweenAtoms(atom_idx1, atom_idx2)
+
+    if bond is None:
+        return None  # No bond exists between the specified atoms
+
+    # Determine the bond multiplicity based on the bond type
+    bond_type = bond.GetBondType()
+    if bond_type == Chem.BondType.SINGLE:
+        return 1
+    if bond_type == Chem.BondType.DOUBLE:
+        return 2
+    if bond_type == Chem.BondType.TRIPLE:
+        return 3
+    if bond_type == Chem.BondType.AROMATIC:
+        return 4
+
+    return None  # In case of an unknown bond type
+
+
+def log(path: str, message: str) -> None:
+    """Log a message to a text file.
 
     Args:
         path (str): Path to the log file.
@@ -321,8 +346,7 @@ def log(path: str, message: str) -> None:
 
 
 def mol_to_graph(mol: Mol) -> nx.Graph:
-    """
-    Convert an RDKit molecule to a NetworkX graph.
+    """Convert an RDKit molecule to a NetworkX graph.
 
     Args:
         mol (RDKit Mol): Molecule to convert.
@@ -339,8 +363,7 @@ def mol_to_graph(mol: Mol) -> nx.Graph:
 
 
 def standardize_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
-    """
-    Standardize the data using the ChEMBL standardizer.
+    """Standardize the data using the ChEMBL standardizer.
 
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
@@ -362,7 +385,7 @@ def standardize_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
 
 
 def symmetrize_soms(mol: Mol, soms: List[int]) -> List[int]:
-    """Adds all atoms in a symmetry group to the list of SoMs, if any atom in the group is already a SoM.
+    """Add all atoms in a symmetry group to the list of SoMs, if any atom in the group is already a SoM.
 
     Args:
         mol (Mol): RDKit molecule

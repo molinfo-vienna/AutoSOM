@@ -1,6 +1,6 @@
 1)  Implemented exception for glutathione. Concerns 328 reactions in the MetaQSAR dataset.
     This case is now taken care of right at the beginning of the pipeline as a separate category.
-        TODO:   There are a few cases of class 104 where the glutathione "replaces" and halogen. 
+        TODO:   There are a few cases of class 104 where the glutathione "replaces" a halogen. 
                 The labels are inconsistent. The annotator sometimes fails to find the ground truth.
                 I need to find a plausible reaction mechanism for this biotransformation to settle the case.
 
@@ -9,24 +9,43 @@
     For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 120,
     whithout increasing the runtime by a significant amount.
 
-3) Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
+3)  Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
+
+4)  Removed the maximum molecular wieght and minimum number of heavy atoms filters.
+    It does not affect more than 100 reactions, and I think this is the fairer way to eavluate the model.
+
+5)  In general, I'm working on refactoring the code to make it as clear and maintanable as possible.
+    This includes splitting large functions into more manageable subfunctions and adding documentation.
+    I've also started to use the recommended CI-CD pipeline.
+
+6)  Verbosity: added the annotation rule to the output (see property in the substrates.sdf output file) for easier tracking.
+    This info could already be found in the log file, but this is even easier.
+
+7)  Concerning the ester hydrolysis: until now, dealkylation reactions and ester hydrolysis were being taken care of 
+    separately and resulted in different annoation strategies. This is consistent with the MetaQSAR data set.
+    However, BASF has requested that this distinction should not be made because it is confusing for many chemists.
+    I have adde a command-line option to deactivate the special ester hydrolysis annotation.
+    Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.
+    If the -e argument is set, the annotation of ester hydrolyses is consistent with MetaQSAR.
 
 
 TODO (after discussion on 11.10.24)
 
-1)  Ester hydrolysis/dealkylation inconsistent
-2)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
-3)  Piperazine: annotate only one side
-4)  Morpholine: look at it again; BASF found an example where the pipeline completely fails
-5)  The rule for molecule containing phosphorus atoms is too simple; improve it.
-6)  Try and make the output more verbose (log file is not enough)
-7)  Clarify multi-steps reactions; it will probably never be possible to handle those.
-8)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
+1) Email: Clarify multi-steps reactions; SOMAN will never be able to handle those, because it is impossible to do structure matching on "unknown" intermediates.
+2) Email: Ask again for examples about the piperazine ring opening. On the examples I have the tool works fine, but it might fail on assymetrical piperazines.
+
+3)  The rule for molecule containing phosphorus atoms is too simple; improve it.
+4)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
+5)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
+6)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
 
 Current state:
-    number of annotated reactions: 5120
-    number of reactions for which we have a ground truth to compare to: 4405 (need to check what those 715 reactions are)
-    number of reactions filtered out due to being too large (>30): 120
-    number of reactions where the pipeline outputs an error or does not find any SoMs: 17
-    percentage of full match: 0.94
-    perecentage of partial match: 0.96
+    number of annotated reactions: 5780
+    number of annotated substrates (multiple reactions per substrate): 2722
+    number of reactions where the pipeline runs to the end without finding any SoMs (i.e. "fails"): 6
+    percentage of full match: 0.83
+    perecentage of partial match: 0.94
+    number of reactions filtered out due to being too large (>40 heavy atoms): 119
+    percentage of full match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.85
+    perecentage of partial match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.96
+    runtime: ca. 35min for filter at 40; ca. 5min for filter at 30

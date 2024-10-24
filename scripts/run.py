@@ -1,6 +1,4 @@
-"""
-This script predicts Sites of Metabolism (SoMs) for unseen data using pairs of 
-molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
+"""This script predicts Sites of Metabolism (SoMs) for unseen data using pairs of molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
 
 The script performs the following steps:
 1. Parses command-line arguments to get input and output paths, input data type, and filter size.
@@ -19,17 +17,18 @@ Command-line arguments:
         The path for the output data.
     -t, --type: str, required
         The type of input data. Choose between "inchi" and "smiles".
-    -f, --filter_size: int, optional, default=30
+    -f, --filter_size: int, optional, default=40
         The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.
         The runtime can get very high for large molecules.
 
 Example usage:
-    python run.py -i input.csv -o output/ -t smiles -f 30
+    python run.py -i input.csv -o output/ -t smiles -f 40
 """
 
 import argparse
 import os
 import shutil
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -37,18 +36,19 @@ from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 from tqdm import tqdm
 
 from src.soman import SOMFinder
-from src.utils import (
+from src.utils import (  # standardize_data,
     concat_lists,
     curate_data,
     log,
     symmetrize_soms,
-)  # standardize_data,
+)
 
 np.random.seed(seed=42)
 tqdm.pandas()
 
 
 if __name__ == "__main__":
+    start = datetime.now()
     parser = argparse.ArgumentParser("Predicting SoMs for unseen data.")
 
     parser.add_argument(
@@ -80,9 +80,18 @@ if __name__ == "__main__":
         "--filter_size",
         type=int,
         required=False,
-        default=30,
+        default=40,
         help="The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
               The runtime can get very high for large molecules.",
+    )
+
+    parser.add_argument(
+        "-e",
+        "--ester_hydrolysis",
+        required=False,
+        help="Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.\
+              If the -e argument is set, the annotation of ester hydrolysis is consistent with MetaQSAR.",
+        action=argparse.BooleanOptionalAction,
     )
 
     args = parser.parse_args()
@@ -126,7 +135,7 @@ if __name__ == "__main__":
     # data = standardize_data(data, logger_path)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
-    data["soms"] = data.progress_apply(
+    data[["soms", "annotation_rule"]] = data.progress_apply(
         lambda x: SOMFinder(
             x.substrate_mol,
             x.metabolite_mol,
@@ -134,8 +143,10 @@ if __name__ == "__main__":
             x.metabolite_id,
             logger_path,
             filter_size=args.filter_size,
+            ester_hydrolysis=args.ester_hydrolysis,
         ).get_soms(),
         axis=1,
+        result_type="expand",
     )
     data["soms"] = data.apply(
         lambda x: symmetrize_soms(x.substrate_mol, x.soms), axis=1
@@ -152,6 +163,7 @@ if __name__ == "__main__":
             "metabolite_id",
             "metabolite_name",
             "soms",
+            "annotation_rule",
         ],
     )
 
@@ -193,3 +205,4 @@ if __name__ == "__main__":
         logger_path,
         f"Average number of soms per compound: {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}",
     )
+    log(logger_path, f"Total runtime: {datetime.now() - start}")
