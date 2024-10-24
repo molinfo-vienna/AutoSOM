@@ -57,7 +57,7 @@ from src.utils import (
 
 class SOMFinder:
     """
-    SOMFinder is a class designed to identify Sites of Metabolism (SoMs) in chemical reactions.
+    SOMFinder annotates Sites of Metabolism (SoMs) in chemical reactions.
 
     Attributes:
         substrate (RDKit Mol): The substrate molecule.
@@ -481,262 +481,6 @@ class SOMFinder:
                         )  # ...add the unmatched atom to the SoMs
                     self.reaction_type = "simple elimination (dealkylation)"
 
-    def _handle_glutathione_conjugation(self) -> bool:
-        """
-        Annotate SoMs for glutathione conjugation.
-
-        Returns:
-            bool: True if annotation is successful, False otherwise.
-        """
-        try:
-            glutathione_atom_idx = self.metabolite.GetSubstructMatch(
-                MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")
-            )
-            if len(glutathione_atom_idx) > 0:
-                # Find the index of the sulfur atom of the glutathione moiety in the metabolite
-                s_index = [
-                    atom_id
-                    for atom_id in glutathione_atom_idx
-                    if self.metabolite.GetAtomWithIdx(atom_id).GetAtomicNum() == 16
-                ][0]
-                # Find the indices of the neighbors of the sulfur atom in the metabolite
-                s_neighbors_idx = [
-                    neighbor.GetIdx()
-                    for neighbor in self.metabolite.GetAtomWithIdx(
-                        s_index
-                    ).GetNeighbors()
-                ]
-                # Find the index of the neighbor of the sulfur atom that is not in the glutathione moiety
-                som_idx_in_metabolite = [
-                    neighbor
-                    for neighbor in s_neighbors_idx
-                    if neighbor not in glutathione_atom_idx
-                ][0]
-                # Get bond id between the sulfur atom and the atom that was the som in the metabolite
-                bond_id = self.metabolite.GetBondBetweenAtoms(
-                    s_index, som_idx_in_metabolite
-                ).GetIdx()
-                # Split the metabolite into two fragements along the bond between the sulfur atom and the atom that was the som
-                fragments = GetMolFrags(
-                    FragmentOnBonds(self.metabolite, [bond_id], addDummies=False),
-                    asMols=True,
-                )
-                # Find the fragment that does not contain the glutathione moiety
-                non_glutathione_fragment = [
-                    fragment
-                    for fragment in fragments
-                    if len(
-                        fragment.GetSubstructMatch(
-                            MolFromSmiles(
-                                "C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N"
-                            )
-                        )
-                    )
-                    == 0
-                ][0]
-                # Find a mapping between the atoms in the non-glutathione fragment and the atoms in the metabolite
-                self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-                mcs = rdFMCS.FindMCS(
-                    [self.metabolite, non_glutathione_fragment], self.params
-                )
-                highlights_query = self.metabolite.GetSubstructMatch(mcs.queryMol)
-                highlights_target = non_glutathione_fragment.GetSubstructMatch(
-                    mcs.queryMol
-                )
-                self.mapping = dict(zip(highlights_query, highlights_target))
-                # Find the index of the som_idx_in_metabolite in the fragment that does not contain the glutathione moiety
-                som_idx_in_fragment = [self.mapping[som_idx_in_metabolite]][0]
-                # Find a mapping between the atoms in the non-glutathione fragment and the atoms in the substrate
-                self._set_mcs_bond_typer_param(
-                    rdFMCS.BondCompare.CompareAny
-                )  # Allow any bond type to be matched
-                mcs = rdFMCS.FindMCS(
-                    [self.substrate, non_glutathione_fragment], self.params
-                )
-                highlights_query = non_glutathione_fragment.GetSubstructMatch(
-                    mcs.queryMol
-                )
-                highlights_target = self.substrate.GetSubstructMatch(mcs.queryMol)
-                self.mapping = dict(zip(highlights_query, highlights_target))
-                # Find the index of the som_idx_in_fragment in the substrate
-                self.soms = [self.mapping[som_idx_in_fragment]]
-                self.reaction_type = "glutathione conjugation"
-                return True
-            return False
-        except (ValueError, KeyError, AttributeError) as e:
-            log(
-                self.logger_path, f"Glutathione conjugation matching failed. Error: {e}"
-            )
-            return False
-
-    def _handle_halogen_to_hydroxy(self) -> bool:
-        """
-        Annotate SoMs for halogen to hydroxy oxidation.
-
-        Returns:
-            bool: True if annotation is successful, False otherwise.
-        """
-        try:
-            query, target = self.substrate, self.metabolite
-
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-            mcs = rdFMCS.FindMCS([query, target], self.params)
-
-            if not self._map_atoms(query, target, mcs):
-                return False
-
-            # Find the halogen atom in the substrate that is not in the metabolite
-            halogen_atom = self._find_unmapped_halogen()
-            if halogen_atom is None:
-                return False
-
-            # The SoM is the neighbor of that halogen atom
-            self.soms = [halogen_atom.GetNeighbors()[0].GetIdx()]
-            self.reaction_type = "halogen to hydroxy oxidation"
-
-            # If the reaction produces an epoxide (instead of the typical alcohol),
-            # find the other atom that is part of the epoxide and add it to the SoMs
-            if self._is_in_epoxide(self.mapping[self.soms[0]]):
-                if self._correct_epoxide():
-                    self.reaction_type = "halogen to epoxide oxidation"
-                    return True
-
-            if self._is_in_quinone(self.mapping[self.soms[0]]):
-                if self._correct_quinone_like_oxidation():
-                    self.reaction_type = "halogen to quinone-like oxidation"
-                    return True
-
-            return True
-        except (ValueError, KeyError, AttributeError) as e:
-            log(
-                self.logger_path,
-                f"Halogen to hydroxy oxidation matching failed. Error: {e}",
-            )
-            return False
-
-    def _handle_simple_addition(self) -> bool:
-        """
-        Annotate SoMs for simple addition reactions.
-
-        Returns:
-            bool: True if a simple addition reaction is found, False otherwise.
-        """
-        query, target = self.substrate, self.metabolite
-
-        if not target.HasSubstructMatch(query):
-            return False
-
-        log(
-            self.logger_path,
-            "Query (substrate) is a substructure of the target (metabolite). Looking for a match...",
-        )
-
-        try:
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([query, target], self.params)
-            if not self._map_atoms(query, target, mcs):
-                return False
-            unmatched_atoms = self._find_unmatched_atoms(target, mcs)
-
-            self._general_case_simple_addition(unmatched_atoms, query, mcs)
-
-            if self._correct_carnitine_addition():
-                return True
-
-            return True
-        except (ValueError, KeyError, AttributeError) as e:
-            log(self.logger_path, f"Simple addition matching failed. Error: {e}")
-            return False
-
-    def _handle_simple_elimination(self) -> bool:
-        """
-        Annotate SoMs for simple elimination reactions.
-
-        Returns:
-            bool: True if a simple elimination reaction is found, False otherwise.
-        """
-        query, target = self.metabolite, self.substrate
-
-        if not target.HasSubstructMatch(query):
-            return False
-
-        log(
-            self.logger_path,
-            "Query (metabolite) is a substructure the target (substrate). Looking for a match...",
-        )
-
-        try:
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([query, target], self.params)
-            unmatched_atoms = self._find_unmatched_atoms(target, mcs)
-
-            self._general_case_simple_elimination(unmatched_atoms, target, mcs)
-
-            if self._correct_ester_hydrolysis():
-                return True
-
-            if self._correct_acetal_hydrolysis():
-                return True
-
-            if self._correct_phosphore():
-                return True
-
-            if self._correct_sulfur_derivatives_hydrolysis():
-                return True
-
-            if self._correct_piperazine_ring_hydroysis():
-                return True
-
-            return True
-        except (ValueError, KeyError, AttributeError) as e:
-            log(self.logger_path, f"Simple elimination matching failed. Error: {e}")
-            return False
-
-    def _handle_redox_reaction(self) -> bool:
-        """Annotate SoMs for redox reactions.
-
-        Returns:
-            bool: True if a redox reaction is found, False otherwise.
-        """
-        try:
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
-
-            # Check if the MCS covers all but one heavy atom in the substrate
-            if mcs.numAtoms != (self.substrate.GetNumHeavyAtoms() - 1):
-                log(self.logger_path, "Not a redox reaction.")
-                return False
-
-            unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
-
-            for atom in unmatched_atoms:
-                for neighbor in atom.GetNeighbors():
-                    # Skip if the neighbor is not in the MCS
-                    if not neighbor.GetIdx() in self.metabolite.GetSubstructMatch(
-                        mcs.queryMol
-                    ):
-                        continue
-
-                    # Annotate redox reaction sites
-                    self.soms.extend([atom.GetIdx(), neighbor.GetIdx()])
-                    self.reaction_type = "redox reaction"
-
-                    # Apply corrections for C-N bond redox reactions
-                    if self._correct_cn_redox():
-                        log(
-                            self.logger_path,
-                            "C-N redox reaction detected. Corrected SoMs.",
-                        )
-
-            if len(self.soms) != 0:
-                return True
-
-            log(self.logger_path, "Not a redox reaction.")
-            return False
-        except (ValueError, KeyError, AttributeError) as e:
-            log(self.logger_path, f"Redox reaction matching failed. Error: {e}")
-            return False
-
     def _handle_complex_reaction(self) -> bool:
         """Handle complex reactions."""
         log(self.logger_path, "Attempting global subgraph isomorphism matching.")
@@ -987,6 +731,302 @@ class SOMFinder:
         """Handle the case where no reaction type matched."""
         log(self.logger_path, "SOMAN found no SoMs.")
         return sorted(self.soms), "unknown"
+
+    def _handle_glutathione_conjugation(self) -> bool:
+        """
+        Annotate sites of metabolism (SoMs) for glutathione conjugation.
+
+        Returns:
+            bool: True if annotation is successful, False otherwise.
+        """
+        try:
+            # Find the glutathione substructure in the metabolite
+            glutathione_pattern = MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")
+            glutathione_indices = self.metabolite.GetSubstructMatch(glutathione_pattern)
+            
+            if not glutathione_indices:
+                return False
+
+            # Identify the sulfur atom and the SoM atom connected to it
+            s_index = self._find_sulfur_index(glutathione_indices)
+            if s_index is None:
+                return False
+
+            s_neighbor_index = self._find_sulfur_neighbor_index(s_index, glutathione_indices)
+            if s_neighbor_index is None:
+                return False
+
+            # Get the fragment without the glutathione moiety
+            non_glutathione_fragment = self._get_non_glutathione_fragment(s_index, s_neighbor_index)
+            if non_glutathione_fragment is None:
+                return False
+
+            # Map atoms between the metabolite and the fragment without the glutathione moiety
+            initial_mapping = self._map_atoms_glutathione(self.metabolite, non_glutathione_fragment)
+            if initial_mapping is None or s_neighbor_index not in initial_mapping:
+                return False
+            
+            # Use the mapping to find the index of the SoM atom in the fragment without the glutathione moiety
+            som_index_in_non_glutathione_fragment = initial_mapping[s_neighbor_index]
+
+            # Map the atoms between the fragment and the substrate
+            final_mapping = self._map_atoms_glutathione(non_glutathione_fragment, self.substrate)
+            if final_mapping is None or som_index_in_non_glutathione_fragment not in final_mapping:
+                return False
+            
+            # Set the identified SoM and reaction type
+            self.soms = [final_mapping[som_index_in_non_glutathione_fragment]]
+            self.reaction_type = "glutathione conjugation"
+            return True
+
+        except (ValueError, KeyError, AttributeError) as e:
+            log(self.logger_path, f"Glutathione conjugation matching failed. Error: {e}")
+            return False
+
+    def _find_sulfur_index(self, glutathione_indices: list) -> int:
+        """
+        Find the sulfur atom index in the glutathione structure.
+
+        Args:
+            glutathione_indices (list): Indices of atoms in the glutathione moiety.
+
+        Returns:
+            int: Index of the sulfur atom, or None if not found.
+        """
+        return next(
+            (idx for idx in glutathione_indices if self.metabolite.GetAtomWithIdx(idx).GetAtomicNum() == 16), 
+            None
+        )
+
+    def _find_sulfur_neighbor_index(self, s_index: int, glutathione_indices: list) -> int:
+        """
+        Find the index of the atom neighboring the sulfur atom.
+        
+        Args:
+            s_index (int): Index of the sulfur atom.
+            glutathione_indices (list): Indices of atoms in the glutathione moiety.
+
+        Returns:
+            int: Index of the atom neighboring the sulfur atom, or None if not found.
+        """
+        s_neighbors = [
+            neighbor.GetIdx()
+            for neighbor in self.metabolite.GetAtomWithIdx(s_index).GetNeighbors()
+        ]
+        return next((idx for idx in s_neighbors if idx not in glutathione_indices), None)
+
+    def _get_non_glutathione_fragment(self, s_index: int, som_index: int):
+        """
+        Split the metabolite into fragments and identify the one without the glutathione moiety.
+
+        Args:
+            s_index (int): Index of the sulfur atom.
+            som_index (int): Index of the SoM atom.
+
+        Returns:
+            Mol: The fragment that does not contain the glutathione moiety, or None if not found.
+        """
+        bond_id = self.metabolite.GetBondBetweenAtoms(s_index, som_index).GetIdx()
+        fragments = GetMolFrags(
+            FragmentOnBonds(self.metabolite, [bond_id], addDummies=False), asMols=True
+        )
+        glutathione_pattern = MolFromSmiles("C(CC(=O)N[C@@H](CS)C(=O)NCC(=O)O)[C@@H](C(=O)O)N")
+        for fragment in fragments:
+            if not fragment.HasSubstructMatch(glutathione_pattern):
+                return fragment
+        return None
+
+    def _map_atoms_glutathione(self, source_mol, target_mol) -> dict:
+        """
+        Map atoms between two molecules using Maximum Common Substructure (MCS).
+
+        Args:
+            source_mol (Mol): The source molecule.
+            target_mol (Mol): The target molecule.
+
+        Returns:
+            dict: A mapping between the atoms in the source molecule and the atoms in the target molecule.
+        """
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
+        mcs = rdFMCS.FindMCS([source_mol, target_mol], self.params)
+        if not mcs or not mcs.queryMol:
+            return False
+
+        highlights_query = source_mol.GetSubstructMatch(mcs.queryMol)
+        highlights_target = target_mol.GetSubstructMatch(mcs.queryMol)
+
+        if not highlights_query or not highlights_target:
+            return None
+
+        return dict(zip(highlights_query, highlights_target))
+
+    def _handle_halogen_to_hydroxy(self) -> bool:
+        """
+        Annotate SoMs for halogen to hydroxy oxidation.
+
+        Returns:
+            bool: True if annotation is successful, False otherwise.
+        """
+        try:
+            query, target = self.substrate, self.metabolite
+
+            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
+            mcs = rdFMCS.FindMCS([query, target], self.params)
+
+            if not self._map_atoms(query, target, mcs):
+                return False
+
+            # Find the halogen atom in the substrate that is not in the metabolite
+            halogen_atom = self._find_unmapped_halogen()
+            if halogen_atom is None:
+                return False
+
+            # The SoM is the neighbor of that halogen atom
+            self.soms = [halogen_atom.GetNeighbors()[0].GetIdx()]
+            self.reaction_type = "halogen to hydroxy oxidation"
+
+            # If the reaction produces an epoxide (instead of the typical alcohol),
+            # find the other atom that is part of the epoxide and add it to the SoMs
+            if self._is_in_epoxide(self.mapping[self.soms[0]]):
+                if self._correct_epoxide():
+                    self.reaction_type = "halogen to epoxide oxidation"
+                    return True
+
+            if self._is_in_quinone(self.mapping[self.soms[0]]):
+                if self._correct_quinone_like_oxidation():
+                    self.reaction_type = "halogen to quinone-like oxidation"
+                    return True
+
+            return True
+        except (ValueError, KeyError, AttributeError) as e:
+            log(
+                self.logger_path,
+                f"Halogen to hydroxy oxidation matching failed. Error: {e}",
+            )
+            return False
+
+    def _handle_simple_addition(self) -> bool:
+        """
+        Annotate SoMs for simple addition reactions.
+
+        Returns:
+            bool: True if a simple addition reaction is found, False otherwise.
+        """
+        query, target = self.substrate, self.metabolite
+
+        if not target.HasSubstructMatch(query):
+            return False
+
+        log(
+            self.logger_path,
+            "Query (substrate) is a substructure of the target (metabolite). Looking for a match...",
+        )
+
+        try:
+            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+            mcs = rdFMCS.FindMCS([query, target], self.params)
+            if not self._map_atoms(query, target, mcs):
+                return False
+            unmatched_atoms = self._find_unmatched_atoms(target, mcs)
+
+            self._general_case_simple_addition(unmatched_atoms, query, mcs)
+
+            if self._correct_carnitine_addition():
+                return True
+
+            return True
+        except (ValueError, KeyError, AttributeError) as e:
+            log(self.logger_path, f"Simple addition matching failed. Error: {e}")
+            return False
+
+    def _handle_simple_elimination(self) -> bool:
+        """
+        Annotate SoMs for simple elimination reactions.
+
+        Returns:
+            bool: True if a simple elimination reaction is found, False otherwise.
+        """
+        query, target = self.metabolite, self.substrate
+
+        if not target.HasSubstructMatch(query):
+            return False
+
+        log(
+            self.logger_path,
+            "Query (metabolite) is a substructure the target (substrate). Looking for a match...",
+        )
+
+        try:
+            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+            mcs = rdFMCS.FindMCS([query, target], self.params)
+            unmatched_atoms = self._find_unmatched_atoms(target, mcs)
+
+            self._general_case_simple_elimination(unmatched_atoms, target, mcs)
+
+            if self._correct_ester_hydrolysis():
+                return True
+
+            if self._correct_acetal_hydrolysis():
+                return True
+
+            if self._correct_phosphore():
+                return True
+
+            if self._correct_sulfur_derivatives_hydrolysis():
+                return True
+
+            if self._correct_piperazine_ring_hydroysis():
+                return True
+
+            return True
+        except (ValueError, KeyError, AttributeError) as e:
+            log(self.logger_path, f"Simple elimination matching failed. Error: {e}")
+            return False
+
+    def _handle_redox_reaction(self) -> bool:
+        """Annotate SoMs for redox reactions.
+
+        Returns:
+            bool: True if a redox reaction is found, False otherwise.
+        """
+        try:
+            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+
+            # Check if the MCS covers all but one heavy atom in the substrate
+            if mcs.numAtoms != (self.substrate.GetNumHeavyAtoms() - 1):
+                log(self.logger_path, "Not a redox reaction.")
+                return False
+
+            unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
+
+            for atom in unmatched_atoms:
+                for neighbor in atom.GetNeighbors():
+                    # Skip if the neighbor is not in the MCS
+                    if not neighbor.GetIdx() in self.metabolite.GetSubstructMatch(
+                        mcs.queryMol
+                    ):
+                        continue
+
+                    # Annotate redox reaction sites
+                    self.soms.extend([atom.GetIdx(), neighbor.GetIdx()])
+                    self.reaction_type = "redox reaction"
+
+                    # Apply corrections for C-N bond redox reactions
+                    if self._correct_cn_redox():
+                        log(
+                            self.logger_path,
+                            "C-N redox reaction detected. Corrected SoMs.",
+                        )
+
+            if len(self.soms) != 0:
+                return True
+
+            log(self.logger_path, "Not a redox reaction.")
+            return False
+        except (ValueError, KeyError, AttributeError) as e:
+            log(self.logger_path, f"Redox reaction matching failed. Error: {e}")
+            return False
 
     def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
         """Check if an atom has both single and double bonded oxygen neighbors."""
