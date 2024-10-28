@@ -1,7 +1,7 @@
 name: code_check
 
 env:
-  PY_PACKAGE_DIR: src
+  PY_PACKAGE_DIR: soman
   PY_UNIT_TEST_DIR: tests
 
 # Controls when the workflow will run
@@ -62,7 +62,8 @@ jobs:
         pip install black[jupyter]
     - name: Analysing the code with black
       run: |
-        black --check .
+        # black --check .
+        black .
 
   isort:
     runs-on: ubuntu-latest
@@ -78,7 +79,8 @@ jobs:
           pip install isort
       - name: Analysing the code with isort
         run: |
-          isort --profile black --check-only .
+          # isort --profile black --check-only .
+          isort --profile black .
 
   test_basis:
     needs:

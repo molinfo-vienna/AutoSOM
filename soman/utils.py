@@ -26,7 +26,7 @@ from typing import List
 import networkx as nx
 import pandas as pd
 from rdkit import Chem
-from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi  # , rdMolDescriptors
+from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 ALLOWED_ATOMS = {
@@ -99,10 +99,10 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
             row["metabolite_mol"]
         )
-    except Exception:
+    except (ValueError, KeyError, AttributeError) as e:
+        print(f"Error: {e} in row {row}")
         row["substrate_mol"] = None
         row["metabolite_mol"] = None
-
     return row
 
 
@@ -230,34 +230,14 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     return data
 
 
-def detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol) -> bool:
-    """Detect reactions consisting in the oxidation of a halogen to a hydroxy group.
-
-    Args:
-        substrate (Mol)
-        metabolite (Mol)
-
-    Returns:
-        bool: True if a halogen to hydroxy reaction is detected, False otherwise.
-    """
-    substrate_elements = count_elements(substrate)
-    metabolite_elements = count_elements(metabolite)
-
-    return (
-        _is_carbon_count_unchanged(substrate_elements, metabolite_elements)
-        and _is_halogen_count_decreased(substrate_elements, metabolite_elements)
-        and _is_oxygen_count_increased(substrate_elements, metabolite_elements)
-    )
-
-
-def _is_carbon_count_unchanged(
+def is_carbon_count_unchanged(
     substrate_elements: dict, metabolite_elements: dict
 ) -> bool:
     """Check if the number of carbons remains the same."""
     return substrate_elements.get("C", 0) == metabolite_elements.get("C", 0)
 
 
-def _is_halogen_count_decreased(
+def is_halogen_count_decreased(
     substrate_elements: dict, metabolite_elements: dict
 ) -> bool:
     """Check if the number of halogens decreases by 1."""
@@ -269,35 +249,13 @@ def _is_halogen_count_decreased(
     return False
 
 
-def _is_oxygen_count_increased(
+def is_oxygen_count_increased(
     substrate_elements: dict, metabolite_elements: dict
 ) -> bool:
     """Check if the number of oxygens increases by 1."""
     return substrate_elements.get("O", 0) + 1 == metabolite_elements.get("O", 0) or (
         substrate_elements.get("O", 0) == 0 and metabolite_elements.get("O", 0) == 1
     )
-
-
-def equal_number_halogens(mol1: Mol, mol2: Mol) -> bool:
-    """Check if two molecules have the same number of halogens.
-
-    Args:
-        mol1 (RDKit Mol): First molecule.
-        mol2 (RDKit Mol): Second molecule.
-
-    Returns:
-        bool: True if the two molecules have the same number of halogens, False otherwise.
-    """
-    halogen_atomic_nums = {9, 17, 35, 53}  # Atomic numbers for F, Cl, Br, I
-
-    num_halogens1 = sum(
-        atom.GetAtomicNum() in halogen_atomic_nums for atom in mol1.GetAtoms()
-    )
-    num_halogens2 = sum(
-        atom.GetAtomicNum() in halogen_atomic_nums for atom in mol2.GetAtoms()
-    )
-
-    return num_halogens1 == num_halogens2
 
 
 def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
