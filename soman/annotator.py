@@ -73,6 +73,13 @@ class Annotator:
         handle_simple_addition_reaction: Annotate SoMs for simple addition reactions.
         handle_simple_elimination_addition: Annotate SoMs for simple elimination reactions.
         handle_redox_reaction: Annotate SoMs for redox reactions.
+        has_equal_number_halogens: Check if substrate and metabolite have the same number of halogens.
+        initialize_atom_notes: Initialize the atom note properties for the substrate and the metabolite.
+        is_glutathione_conjugation: Check if the reaction is a glutathione conjugation.
+        is_halogen_to_hydroxy_oxidation: Check if the reaction is a halogen to hydroxy oxidation.
+        is_too_large_to_process: Check if the reaction is too large to process.
+        log_and_return_soms: Return SoMs and annotation rule.
+        log_initial_reaction_info: Log the initial reaction information.
     """
 
     def __init__(
@@ -566,6 +573,17 @@ class Annotator:
         """Set the MCS bond compare parameter."""
         self.params.BondTyper = bond_typer_param
 
+    def compute_weight_ratio(self) -> int:
+        """Compute whether the substrate is lighter, heavier or equally heavy than the metabolite."""
+        if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
+            log(self.logger_path, "Substrate lighter than metabolite.")
+            return -1
+        if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
+            log(self.logger_path, "Substrate heavier than the metabolite.")
+            return 1
+        else:
+            return 0
+
     def handle_complex_reaction(self) -> bool:
         """Annotate SoMs for complex reactions."""
         log(self.logger_path, "Attempting global subgraph isomorphism matching.")
@@ -1028,7 +1046,7 @@ class Annotator:
 
                     # Annotate redox reaction sites
                     self.soms.extend([atom.GetIdx(), neighbor.GetIdx()])
-                    self.reaction_type = "redox reaction"
+                    self.reaction_type = "redox"
 
                     # Apply corrections for C-N bond redox reactions
                     if self._correct_cn_redox():
@@ -1098,20 +1116,6 @@ class Annotator:
             return True
         return False
 
-    def is_substrate_lighter_than_metabolite(self) -> bool:
-        """Check if the substrate is lighter than the metabolite."""
-        if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
-            log(self.logger_path, "Substrate lighter than metabolite.")
-            return True
-        return False
-
-    def is_substrate_heavier_than_metabolite(self) -> bool:
-        """Check if the substrate is heavier than the metabolite."""
-        if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
-            log(self.logger_path, "Substrate heavier than metabolite.")
-            return True
-        return False
-
     def is_too_large_to_process(self) -> bool:
         """Check if the substrate or metabolite is too large for further processing."""
         if (
@@ -1127,7 +1131,9 @@ class Annotator:
         return False
 
     def log_and_return_soms(self) -> Tuple[List[int], str]:
-        """Return SoMs and rule after successful annotation."""
+        """Return SoMs and annotation rule."""
+        if self.reaction_type == "unknown" or self.reaction_type == "maximum number of heavy atoms filter":
+            log(self.logger_path, "SOMAN is unable to annotate SoMs.")
         log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
         return sorted(self.soms), self.reaction_type
 
@@ -1166,11 +1172,13 @@ def annotate_soms(
         if som_finder.handle_halogen_to_hydroxy():
             return som_finder.log_and_return_soms()
 
-    if som_finder.is_substrate_lighter_than_metabolite():
+    weight_ratio = som_finder.compute_weight_ratio()
+
+    if weight_ratio == 1:
         if som_finder.handle_simple_addition():
             return som_finder.log_and_return_soms()
 
-    if som_finder.is_substrate_heavier_than_metabolite():
+    if weight_ratio == -1:
         if som_finder.handle_simple_elimination():
             return som_finder.log_and_return_soms()
 
@@ -1180,7 +1188,7 @@ def annotate_soms(
     if som_finder.is_too_large_to_process():
         return som_finder.log_and_return_soms()
 
-    if som_finder.has_equal_number_halogens():
+    if weight_ratio == 0 and som_finder.has_equal_number_halogens():
         if som_finder.handle_redox_reaction():
             return som_finder.log_and_return_soms()
 
