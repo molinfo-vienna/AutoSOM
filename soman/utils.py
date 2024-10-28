@@ -1,23 +1,4 @@
-"""This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX.
-
-- _find_symmetry_groups(mol: Mol): Identifies symmetry groups in a molecule.
-- _set_allowed_elements_flag(mol: Mol): Checks if a molecule contains only allowed chemical elements.
-- _standardize_row(row: pd.Series): Standardizes a row of a DataFrame containing substrate and metabolite molecules.
-- concat_lists(lst: List): Concatenates a list of lists into a single list.
-- count_elements(mol: Mol): Counts the number of atoms of each element in a molecule.
-- curate_data(data: pd.DataFrame): Curates the data according to specific rules defined in the SoM predictor (AweSOM).
-- detect_halogen_to_hydroxy(substrate: Mol, metabolite: Mol): Detects reactions consisting of the oxidation of a halogen to a hydroxy group.
-- _is_carbon_count_unchanged(substrate_elements: dict, metabolite_elements: dict): Checks if the number of carbons remains the same.
-- _is_halogen_count_decreased(substrate_elements: dict, metabolite_elements: dict): Checks if the number of halogens decreases by 1.
-- _is_oxygen_count_increased(substrate_elements: dict, metabolite_elements: dict): Checks if the number of oxygens increases by 1.
-- equal_number_halogens(mol1: Mol, mol2: Mol): Checks if two molecules have the same number of halogens.
-- log(path: str, message: str): Logs a message to a text file.
-- mol_to_graph(mol: Mol): Converts an RDKit molecule to a NetworkX graph.
-- standardize_data(data: pd.DataFrame): Standardizes the data using the ChEMBL standardizer.
-- symmetrize_soms(mol: Mol, soms: List[int]): Adds all atoms in a symmetry group to the list of SoMs if any atom in the group is already a SoM.
-
-The module also defines a set of allowed atoms for chemical elements and imports necessary libraries.
-"""
+"""This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX."""
 
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -177,39 +158,6 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     )
     data_size = len(data)
 
-    # # Filter out reactions with molecular mass above 1000 Da
-    # data["substrate_molecular_weight"] = data["substrate_mol"].map(
-    #     rdMolDescriptors.CalcExactMolWt
-    # )
-    # data["metabolite_molecular_weight"] = data["metabolite_mol"].map(
-    #     rdMolDescriptors.CalcExactMolWt
-    # )
-    # data = data[
-    #     (data.substrate_molecular_weight <= 1000)
-    #     & (data.metabolite_molecular_weight <= 1000)
-    # ]
-    # log(
-    #     logger_path,
-    #     f"Molecular weight filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
-    # )
-    # data_size = len(data)
-
-    # # Filter out reactions with fewer than 5 heavy atoms
-    # data["substrate_num_heavy_atoms"] = data.substrate_mol.map(
-    #     lambda x: x.GetNumHeavyAtoms()
-    # )
-    # data["metabolite_num_heavy_atoms"] = data.metabolite_mol.map(
-    #     lambda x: x.GetNumHeavyAtoms()
-    # )
-    # data = data[
-    #     (data.substrate_num_heavy_atoms >= 5) & (data.metabolite_num_heavy_atoms >= 5)
-    # ]
-    # log(
-    #     logger_path,
-    #     f"Minimum number of heavy atoms filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
-    # )
-    # data_size = len(data)
-
     # Clean up the DataFrame
     data = data.drop(
         columns=[
@@ -217,10 +165,6 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
             "metabolite_inchi",
             "substrate_allowed_elements_flag",
             "metabolite_allowed_elements_flag",
-            # "substrate_molecular_weight",
-            # "metabolite_molecular_weight",
-            # "substrate_num_heavy_atoms",
-            # "metabolite_num_heavy_atoms",
         ]
     )
 

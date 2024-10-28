@@ -73,8 +73,6 @@ class Annotator:
         handle_simple_addition_reaction: Annotate SoMs for simple addition reactions.
         handle_simple_elimination_addition: Annotate SoMs for simple elimination reactions.
         handle_redox_reaction: Annotate SoMs for redox reactions.
-
-
     """
 
     def __init__(
@@ -86,7 +84,6 @@ class Annotator:
         ester_hydrolysis: bool,
     ):
         """Initialize the SOMFinder class."""
-
         substrate_mol, substrate_id = substrate
         metabolite_mol, metabolite_id = metabolite
 
@@ -172,7 +169,7 @@ class Annotator:
                 for atom_id in self.soms
                 if self.substrate.GetAtomWithIdx(atom_id).GetAtomicNum() == 6
             ]
-            self.reaction_type = "redox reaction (C-N bond)"
+            self.reaction_type = "redox (C-N bond)"
             return True
 
         return False
@@ -233,23 +230,47 @@ class Annotator:
             return True
         return False
 
-    def _correct_phosphore(self) -> bool:
-        """Add exception handling for reactions containing phosphorus."""
-        phosphore_patterns = [MolFromSmarts("[P](=O)"), MolFromSmarts("[P](=S)")]
+    def _correct_phosphate_hydrolysis(self) -> bool:
+        """Correct SoMs for phosphate hydrolysis if applicable."""
+        phosphate_derivate_pattern = MolFromSmarts("P(=O)")
 
-        if not any(
-            self.substrate.GetSubstructMatch(pattern) for pattern in phosphore_patterns
-        ):
+        if not self.substrate.GetSubstructMatch(phosphate_derivate_pattern):
             return False
 
-        self.soms = [
-            atom.GetIdx()
-            for atom in self.substrate.GetAtoms()
-            if atom.GetAtomicNum() == 15
-        ]
-        self.reaction_type = "simple elimination (phosphore)"
-        log(self.logger_path, "Phosphore atom detected.")
-        return True
+        som_atom = self.substrate.GetAtomWithIdx(self.soms[0])
+        if (
+            som_atom.GetSymbol() == "P"
+        ):  # if the som is a phosphore atom, leave it as it is
+            self.reaction_type = "simple elimination (phosphate-derivative hydrolysis)"
+            log(
+                self.logger_path,
+                "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+            )
+            return True
+        for neighbor in som_atom.GetNeighbors():
+            if neighbor.GetSymbol() == "P":
+                # if one of its neighbors is a phosphore atoms,
+                # we have the case where a phosphore hydrolysis took place,
+                # and the metabolite does **not** contain the phosphate functional group anymore
+                self.soms = [neighbor.GetIdx()]
+                self.reaction_type = (
+                    "simple elimination (phosphate-derivative hydrolysis)"
+                )
+                log(
+                    self.logger_path,
+                    "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+                )
+                return True
+            # for double_neighbor in neighbor.GetNeighbors():
+            #     if double_neighbor.GetSymbol() == "P":
+            #         # if one of its neighbors is a phosphore atoms,
+            #         # we have the case where a phosphore hydrolysis took place,
+            #         # and the metabolite contains the phosphate functional group
+            #         self.soms = [double_neighbor.GetIdx()]
+            #         self.reaction_type = "simple elimination (phosphate hydrolysis)"
+            #         log(self.logger_path, "Phosphate hydrolysis detected. Corrected SoMs.")
+            #         return True
+        return False
 
     def _correct_piperazine_ring_hydroysis(self) -> bool:
         """Correct SoMs for piperazine ring opening if applicable."""
@@ -443,7 +464,7 @@ class Annotator:
                         self.soms.append(
                             atom.GetIdx()
                         )  # ...add the unmatched atom to the SoMs
-                    self.reaction_type = "simple elimination (dealkylation)"
+                    self.reaction_type = "simple elimination (general)"
 
     def _find_sulfur_index(self, glutathione_indices: list) -> int:
         """
@@ -965,7 +986,7 @@ class Annotator:
             if self._correct_acetal_hydrolysis():
                 return True
 
-            if self._correct_phosphore():
+            if self._correct_phosphate_hydrolysis():
                 return True
 
             if self._correct_sulfur_derivatives_hydrolysis():
@@ -992,7 +1013,7 @@ class Annotator:
 
             # Check if the MCS covers all but one heavy atom in the substrate
             if mcs.numAtoms != (self.substrate.GetNumHeavyAtoms() - 1):
-                log(self.logger_path, "Not a redox reaction.")
+                log(self.logger_path, "Not a redox.")
                 return False
 
             unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
@@ -1052,7 +1073,6 @@ class Annotator:
             atom.SetIntProp("atomNote", atom.GetIdx())
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
-        return None
 
     def is_glutathione_conjugation(self) -> bool:
         """Check if the reaction is a glutathione conjugation."""
@@ -1108,8 +1128,8 @@ class Annotator:
 
     def log_and_return_soms(self) -> Tuple[List[int], str]:
         """Return SoMs and rule after successful annotation."""
-        log(self.logger_path, f"{self.reaction_type} successful.")
-        return sorted(self.soms), self.reaction_type.capitalize()
+        log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
+        return sorted(self.soms), self.reaction_type
 
     def log_initial_reaction_info(self) -> None:
         """Log the initial reaction information."""
@@ -1117,7 +1137,6 @@ class Annotator:
             self.logger_path,
             f"Substrate ID: {self.substrate_id}, Metabolite ID: {self.metabolite_id}",
         )
-        return None
 
 
 def annotate_soms(
@@ -1128,7 +1147,6 @@ def annotate_soms(
     ester_hydrolysis: bool,
 ) -> Callable[[], Tuple[List[int], str]]:
     """Annotates the SoMs for a given substrate-metabolite pair."""
-
     som_finder = Annotator(
         substrate,
         metabolite,

@@ -11,8 +11,8 @@
 
 3)  Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
 
-4)  Removed the maximum molecular wieght and minimum number of heavy atoms filters.
-    It does not affect more than 100 reactions, and I think this is the fairer way to eavluate the model.
+4)  Removed the maximum molecular weight and minimum number of heavy atoms filters.
+    It does not affect more than 100 reactions, and I think this is the fairer way to evaluate the model.
 
 5)  In general, I'm working on refactoring the code to make it as clear and maintanable as possible.
     This includes splitting large functions into more manageable subfunctions and adding documentation.
@@ -28,13 +28,18 @@
     Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.
     If the -e argument is set, the annotation of ester hydrolyses is consistent with MetaQSAR.
 
+8)  Concerning the hydrolysis of phosphate-derivatives, we can differentiate two cases: in the first case, the recorded metabolite
+    does not contain the phopsphore atom, in the second case, the recorded metabolite does contain the phosphore atom. I managed to modify
+    the handling of this type of reaction so that if the first case arises, the annotation is always correct. For the first case,
+    I have not been able to write a rule that would annotate it correctly while not messing with other types of elimination reactions.
+    This concern approx. 25 reactions in my data set. I will come back to these later on.
+
 
 TODO (after discussion on 11.10.24)
 
 1) Email: Clarify multi-steps reactions; SOMAN will never be able to handle those, because it is impossible to do structure matching on "unknown" intermediates.
 2) Email: Ask again for examples about the piperazine ring opening. On the examples I have the tool works fine, but it might fail on assymetrical piperazines.
 
-3)  The rule for molecule containing phosphorus atoms is too simple; improve it.
 4)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
 5)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
 6)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
