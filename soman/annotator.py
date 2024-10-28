@@ -577,10 +577,10 @@ class Annotator:
         """Compute whether the substrate is lighter, heavier or equally heavy than the metabolite."""
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate lighter than metabolite.")
-            return -1
+            return 1
         if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate heavier than the metabolite.")
-            return 1
+            return -1
         else:
             return 0
 
@@ -1132,9 +1132,12 @@ class Annotator:
 
     def log_and_return_soms(self) -> Tuple[List[int], str]:
         """Return SoMs and annotation rule."""
-        if self.reaction_type == "unknown" or self.reaction_type == "maximum number of heavy atoms filter":
+        if self.reaction_type == "unknown":
             log(self.logger_path, "SOMAN is unable to annotate SoMs.")
-        log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
+        elif self.reaction_type == "maximum number of heavy atoms filter":
+            log(self.logger_path, "Substrate or metabolite too large for processing.")
+        else:
+            log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
         return sorted(self.soms), self.reaction_type
 
     def log_initial_reaction_info(self) -> None:
