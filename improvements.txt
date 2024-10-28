@@ -22,9 +22,9 @@
     This info could already be found in the log file, but this is even easier.
 
 7)  Concerning the ester hydrolysis: until now, dealkylation reactions and ester hydrolysis were being taken care of 
-    separately and resulted in different annoation strategies. This is consistent with the MetaQSAR data set.
+    separately and resulted in different annotation strategies. This is consistent with the MetaQSAR data set.
     However, BASF has requested that this distinction should not be made because it is confusing for many chemists.
-    I have adde a command-line option to deactivate the special ester hydrolysis annotation.
+    I have added a command-line option to deactivate the special ester hydrolysis annotation.
     Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.
     If the -e argument is set, the annotation of ester hydrolyses is consistent with MetaQSAR.
 
@@ -48,9 +48,9 @@ Current state:
     number of annotated reactions: 5780
     number of annotated substrates (multiple reactions per substrate): 2722
     number of reactions where the pipeline runs to the end without finding any SoMs (i.e. "fails"): 6
-    percentage of full match: 0.83
+    percentage of full match: 0.84
     perecentage of partial match: 0.94
     number of reactions filtered out due to being too large (>40 heavy atoms): 119
     percentage of full match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.85
-    perecentage of partial match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.96
-    runtime: ca. 35min for filter at 40; ca. 5min for filter at 30
+    perecentage of partial match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.95
+    runtime: ca. 25min for filter at 40; ca. 5min for filter at 30
