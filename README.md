@@ -25,13 +25,17 @@ Install soman package:
 
 To annotate data, please run:
 
-`python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE`
+`python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE -f FILTER_SIZE -e`
 
 The `INPUT_PATH` is the path to your input data. The file format must be .csv. The first and second columns should contain either smiles or inchi of the substrate and metabolite, respectively.
 
 The `OUTPUT_PATH` is the path where the output (annotated) data as well as the log file will be written.
 
 The `TYPE` indicates whether the input data contains SMILES of InChIs. Please choose between `smiles` and `inchi`.
+
+The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching. The default value is 45. The lower the value, the more reactions are filtered out, and the faster the algorithm runs.
+
+The `-e` flag controls the strategy for annotating ester hydrolyses. Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom). If the -e argument is set, the annotation is on the carbonyl C-atom, which is consistent with the MetaQSAR data set.
 
 
 ### Sandbox

@@ -1,13 +1,12 @@
-1)  Implemented exception for glutathione. Concerns 328 reactions in the MetaQSAR dataset.
+1)  Implemented seperate rule for glutathione oxidation. Concerns 365 reactions in the MetaQSAR dataset.
     This case is now taken care of right at the beginning of the pipeline as a separate category.
-        TODO:   There are a few cases of class 104 where the glutathione "replaces" a halogen. 
+        TODO:   There are a few cases of subclass 104 where the glutathione "replaces" a halogen. 
                 The labels are inconsistent. The annotator sometimes fails to find the ground truth.
                 I need to find a plausible reaction mechanism for this biotransformation to settle the case.
 
 2)  Moved the molecular weight filter to the critical part of the algorithm (MCS matching and simple redox reactions),
     so that other parts of the algorithm which are not too affected by the size of the molecules can run without rejection.
-    For MetaQSAR and a maximum number of heavy atoms set at 30, this reduced the mumber of rejections from 777 to 120,
-    whithout increasing the runtime by a significant amount.
+    This reduces the mumber of rejections, whithout increasing the runtime by a significant amount.
 
 3)  Implemented reaction halogen -> hydroxy group as a separate reaction type. Previously, it was handled during MCS matching.
 
@@ -18,15 +17,21 @@
     This includes splitting large functions into more manageable subfunctions and adding documentation.
     I've also started to use the recommended CI-CD pipeline.
 
-6)  Verbosity: added the annotation rule to the output (see property in the substrates.sdf output file) for easier tracking.
+6)  Verbosity: added the annotation rule to the output (see "annotation_rule" property in the substrates.sdf output file) for easier tracking.
     This info could already be found in the log file, but this is even easier.
 
 7)  Concerning the ester hydrolysis: until now, dealkylation reactions and ester hydrolysis were being taken care of 
-    separately and resulted in different annotation strategies. This is consistent with the MetaQSAR data set.
-    However, BASF has requested that this distinction should not be made because it is confusing for many chemists.
-    I have added a command-line option to deactivate the special ester hydrolysis annotation.
-    Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.
-    If the -e argument is set, the annotation of ester hydrolyses is consistent with MetaQSAR.
+    separately and resulted in different annotation strategies. This annotation is consistent with the MetaQSAR data set.
+    However, BASF has requested that this strategy should be revised because experts tend to disagree on whether to annotate
+    the carbonyl C-atom (current strategy) or the alkyl C-atom (similar to dealkylation reactions).
+    In order to acomodate both views, I have added a command-line option to deactivate the special ester hydrolysis annotation.
+    Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom).
+    If the -e argument is set, the annotation of ester hydrolyses is on the  carbonyl C-atom and is thus consistent with MetaQSAR.
+
+    Further research: I am assuming that ester hydrolyses are perfromed in majority by carboxylesterases.
+    I have no way of knowing this for certain, because the enzyme is not indicated in the MetaQSAR data set. So this is an educated guess.
+    According to the literature, the SoM is in this case the carbonyl C-atom (via a nucleophilic attack by a deprotonated serine residue).
+
 
 8)  Concerning the hydrolysis of phosphate-derivatives, we can differentiate two cases: in the first case, the recorded metabolite
     does not contain the phopsphore atom, in the second case, the recorded metabolite does contain the phosphore atom. I managed to modify
@@ -38,7 +43,7 @@
 TODO (after discussion on 11.10.24)
 
 1) Email: Clarify multi-steps reactions; SOMAN will never be able to handle those, because it is impossible to do structure matching on "unknown" intermediates.
-2) Email: Ask again for examples about the piperazine ring opening. On the examples I have the tool works fine, but it might fail on assymetrical piperazines.
+2) Email: Ask again for examples about the piperazine ring opening. On the examples I have the tool works fine, but it might fail on asymetrical piperazines.
 
 4)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
 5)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
