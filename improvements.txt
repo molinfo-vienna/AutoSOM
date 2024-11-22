@@ -40,16 +40,14 @@
     This concern approx. 25 reactions in my data set. I will come back to these later on.
 
 
-TODO (after discussion on 11.10.24)
+TODO (after discussion in jour fixe):
 
-1) Email: Clarify multi-steps reactions; SOMAN will never be able to handle those, because it is impossible to do structure matching on "unknown" intermediates.
-2) Email: Ask again for examples about the piperazine ring opening. On the examples I have the tool works fine, but it might fail on asymetrical piperazines.
-
-4)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
-5)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
-6)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
+1)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
+2)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
+3)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
 
 Current state:
+
     number of annotated reactions: 5780
     number of annotated substrates (multiple reactions per substrate): 2722
     number of reactions where the pipeline runs to the end without finding any SoMs (i.e. "fails"): 6
