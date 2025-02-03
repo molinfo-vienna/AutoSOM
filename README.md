@@ -40,6 +40,6 @@ The `-e` flag controls the strategy for annotating ester hydrolyses. Per default
 
 ### Sandbox
 
-You can use the `sandbox` Jupyter Notebook to visualize your results. For this, you'll first need to install the `ipykernel` and `ipywidgets` packages with pip. You can choose this option directly when installing the package by running:
+You can use the `visualize_results` Jupyter Notebook to visualize your results. For this, you'll first need to install the `ipykernel` and `ipywidgets` packages with pip. You can choose this option directly when installing the package by running:
 
 `pip install -e .[vis]`
