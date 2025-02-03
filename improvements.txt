@@ -39,21 +39,29 @@
     I have not been able to write a rule that would annotate it correctly while not messing with other types of elimination reactions.
     This concern approx. 25 reactions in my data set. I will come back to these later on.
 
+29.01.25
 
-TODO (after discussion in jour fixe):
+1) Changed labelling of "halogen to hydroxy oxidation", "halogen to epoxide oxidation" and "halogen to quinone-like oxidation" to "halogen to hydroxy", "halogen to expocide" and "halogen to quinone-like".
+2) Simplified handling of "complex (maximum common subgraph matching)" reactions.
+3) Greatly improved results of "complex (maximum common subggraph matching)" reactions by introducing an exception for the opening of heterocycles and manually correcting many inconsistent ground truth annotations.
 
-1)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution.
+31.01.25
+
+1) Refactoring
+2) Started working on handling of alkyl chain carbon atom deletions (reaction subclass 119 in MetaQSAR). Not working yet.
+
+TODO:
+
+1)  Currently I annotate both C and O for redox reactions at ketones/alcohols. This is consistent with MetaQSAR. but BASF argues that it is confusing. Find a solution?
 2)  Morpholine: look at it again; BASF found an example where the pipeline completely fails. For now, I simply removed it.
-3)  Look at ring closure reactions. These are actually very tricky and need to be taken care of as "complex".
+3)  Look at ring closure reactions (reaction subclass 85). These are very tricky and I only have a few examples.
 
 Current state:
 
-    number of annotated reactions: 5780
-    number of annotated substrates (multiple reactions per substrate): 2722
-    number of reactions where the pipeline runs to the end without finding any SoMs (i.e. "fails"): 6
-    percentage of full match: 0.84
-    perecentage of partial match: 0.94
-    number of reactions filtered out due to being too large (>40 heavy atoms): 119
-    percentage of full match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.85
-    perecentage of partial match, excluding the reactions where the maximum number of heavy atoms filter was applied: 0.95
-    runtime: ca. 25min for filter at 40; ca. 5min for filter at 30
+    number of annotated reactions: 5712
+    number of reactions where the pipeline runs to the end without finding any SoMs (i.e. "fails"): 20
+    percentage of full match: 91.3%
+    perecentage of partial match: 95.2%
+    number of reactions filtered out due to being too large (>45 heavy atoms): 68
+    
+    runtime: ca. 30min for filter at 45; ca. 5min for filter at 30

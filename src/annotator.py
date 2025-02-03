@@ -1,34 +1,22 @@
-"""This module provides functionalities for annotating the sites of metabolism (SoMs) given a substrate and a metabolite molecule."""
+# pylint: disable=I1101
+
+"""This module provides functionalities for annotating the sites of metabolism (SoMs) \
+given a substrate and a metabolite molecule."""
 
 from typing import Callable, List, Tuple
 
-import numpy as np
 from networkx.algorithms import isomorphism
-from rdkit.Chem import (
-    FragmentOnBonds,
-    GetMolFrags,
-    Mol,
-    MolFromSmarts,
-    MolFromSmiles,
-    rdFingerprintGenerator,
-    rdFMCS,
-)
-from rdkit.DataStructs import TanimotoSimilarity
+from rdkit.Chem import (FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts,
+                        MolFromSmiles, rdFMCS)
 
-from soman.utils import (
-    count_elements,
-    get_bond_order,
-    is_carbon_count_unchanged,
-    is_halogen_count_decreased,
-    is_oxygen_count_increased,
-    log,
-    mol_to_graph,
-)
+from src.utils import (count_elements, get_bond_order,
+                       get_neighbor_atomic_nums, is_carbon_count_unchanged,
+                       is_halogen_count_decreased, is_oxygen_count_increased,
+                       log, mol_to_graph)
 
 
 class Annotator:
-    """
-    Annotator annotates Sites of Metabolism (SoMs) in chemical reactions.
+    """Annotates Sites of Metabolism (SoMs) from substrate/metabolite pairs.
 
     Attributes:
         substrate (Tuple[Mol, int]): The substrate molecule and its ID.
@@ -42,41 +30,62 @@ class Annotator:
         reaction_type (str): Type of reaction identified.
 
     Methods:
-        _correct_acetal_hydrolysis: Correct SoMs for acetals if applicable.
-        _correct_carnitine_addition: Correct SoMs for the addition of carnitine to a carboxylic acid if applicable.
+        _correct_acetal_hydrolysis: Correct SoMs for acetals.
+        _correct_alkyl_chain_deletion: Correct SoMs for the deletion of 
+            one or more carbon atoms from an alkyl chain.
+        _correct_carnitine_addition: Correct SoMs for the addition of carnitine to a carboxylic
+            acid.
         _correct_cn_redox: Apply corrections if the redox reaction involves a C-N bond.
-        _correct_epoxide: Correct the SoMs for halogen to hydroxy oxidation if the reaction produces an epoxide instead of the typical alcohol.
-        _correct_ester_hydrolysis: Correct SoMs for ester hydrolysis if applicable.
-        _correct_phosphore: Add exception handling for reactions containing phosphorus.
-        _correct_piperazine_ring_hydroysis: Correct SoMs for piperazine ring opening if applicable.
-        _correct_quinone_like_oxidation: Correct the SoMs for halogen to hydroxy oxidation if the reaction produces a quinone-like metabolite instead of the typical alcohol.
-        _correct_sulfur_derivatives_hydrolysis: Correct SoMs for the hydrolysis of sulfur derivatives (sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.) if applicable.
-        _has_single_and_double_bonded_oxygen: Check if an atom has both single and double bonded oxygen neighbors.
+        _correct_epoxide: Correct the SoMs for halogen to hydroxy if the reaction
+            produces an epoxide instead of the typical alcohol.
+        _correct_ester_hydrolysis: Correct SoMs for ester hydrolysis.
+        _correct_oxacyclopropane_hydrolysis: Corrects SoMs for oxacyclopropane hydrolysis reactions.
+        _correct_piperazine_ring_hydroysis: Correct SoMs for piperazine ring opening.
+        _correct_quinone_like_oxidation: Correct the SoMs for halogen to hydroxy if the
+            reaction produces a quinone-like metabolite instead of the typical alcohol.
+        _correct_ring_opening: Corrects SoMs for ring-opening reactions.
+        _correct_sulfur_derivatives_hydrolysis: Correct SoMs for the hydrolysis of sulfur
+            derivatives (sulfamate, sulfonamide, sulfonate, sulfuric diamide, etc.).
+        _correct_thiourea_reduction: Corrects SoMs for thiourea reduction reactions.
+        _has_single_and_double_bonded_oxygen: Check if an atom has both single and double bonded
+            oxygen neighbors.
         _initialize_mcs_params: Initialize the MCS parameters.
         _is_in_epoxide: Check if the atom is in an epoxide.
         _is_in_quinone: Check if the atom is in a quinone-like structure.
-        _find_unmapped_halogen: Find the halogen atom in the substrate that is not present in the mapping.
+        _find_unmapped_halogen: Find the halogen atom in the substrate that is not present in the
+            mapping.
         _find_unmatched_atoms: Find unmatched atoms between the target and the query molecule.
-        _general_case_simple_addition: Identify SoMs in the simple addition case based on unmatched atoms.
-        _general_case_simple_elimination: Identify SoMs in the simple elimination case based on unmatched atoms.
+        _general_case_simple_addition: Identify SoMs in the simple addition case based on unmatched
+            atoms.
+        _general_case_simple_elimination: Identify SoMs in the simple elimination case based on
+            unmatched atoms.
         _find_sulfur_index: Find the sulfur atom index in the glutathione structure.
         _find_sulfur_neighbor_index: Find the index of the atom neighboring the sulfur atom.
-        _get_non_glutathione_fragment: Split the metabolite into fragments and identify the one without the glutathione moiety.
-        _map_atoms_glutathione: Map atoms between two molecules using Maximum Common Substructure (MCS).
+        _get_non_glutathione_fragment: Split the metabolite into fragments and identify the one
+            without the glutathione moiety.
+        _map_atoms_glutathione: Map atoms between two molecules using MCS.
         _map_atoms: Create mapping between query and target based on MCS.
         _set_mcs_bond_typer_param: Set the MCS bond compare parameter.
+        _set_mcs_bond_compare_params_to_redox: Set the MCS bond compare parameters 
+            for redox reactions.
+        _reset_mcs_bond_compare_params: Reset the MCS bond compare parameters to their 
+            default value.
         handle_complex_reaction: Handle complex reactions.
-        handle_complex_reaction_global_subgraph_isomorphism_matching: Annotate SoMs for complex reactions using subgraph isomorphism matching.
-        handle_complex_reaction_largest_common_subgraph_matching: Annotate SoMs for complex reactions using largest common subgraph matching (maximum common substructure).
+        handle_complex_reaction_subgraph_ismorphism_matching: Annotate SoMs for complex
+            reactions using subgraph isomorphism matching.
+        handle_complex_reaction_maximum_common_subgraph_matching: Annotate SoMs for complex
+            reactions using largest common subgraph matching.
         handle_glutathione_conjugation: Annotate SoMs for glutathione conjugation.
-        handle_halogen_to_hydroxy_oxidation: Annotate SoMs for halogen to hydroxy oxidation.
+        handle_halogen_to_hydroxy_oxidation: Annotate SoMs for halogen to hydroxy.
         handle_simple_addition_reaction: Annotate SoMs for simple addition reactions.
         handle_simple_elimination_addition: Annotate SoMs for simple elimination reactions.
         handle_redox_reaction: Annotate SoMs for redox reactions.
-        has_equal_number_halogens: Check if substrate and metabolite have the same number of halogens.
-        initialize_atom_notes: Initialize the atom note properties for the substrate and the metabolite.
+        has_equal_number_halogens: Check if substrate and metabolite have the same number of
+            halogens.
+        initialize_atom_notes: Initialize the atom note properties for the substrate and the
+            metabolite.
         is_glutathione_conjugation: Check if the reaction is a glutathione conjugation.
-        is_halogen_to_hydroxy_oxidation: Check if the reaction is a halogen to hydroxy oxidation.
+        is_halogen_to_hydroxy_oxidation: Check if the reaction is a halogen to hydroxy.
         is_too_large_to_process: Check if the reaction is too large to process.
         log_and_return_soms: Return SoMs and annotation rule.
         log_initial_reaction_info: Log the initial reaction information.
@@ -107,7 +116,7 @@ class Annotator:
         self.reaction_type = "unknown"
 
     def _correct_acetal_hydrolysis(self) -> bool:
-        """Correct SoMs for acetals if applicable."""
+        """Correct SoMs for acetals."""
         acetal_pattern = MolFromSmarts("[C;X4](O[*])O[*]")
         exclusion_pattern = MolFromSmarts("[C;X4](OC(=O))O[*]")
 
@@ -135,8 +144,88 @@ class Annotator:
             return True
         return False
 
+    def _correct_alkyl_chain_deletion(self) -> bool:
+        """Correct SoMs for the deletion of one or more carbon atoms from an alkyl chain."""
+        # Compare carbon counts
+        substrate_carbon_count = sum(
+            1 for atom in self.substrate.GetAtoms() if atom.GetSymbol() == "C"
+        )
+        metabolite_carbon_count = sum(
+            1 for atom in self.metabolite.GetAtoms() if atom.GetSymbol() == "C"
+        )
+
+        # Compute carbon loss
+        carbon_loss = substrate_carbon_count - metabolite_carbon_count
+        if carbon_loss < 1:
+            return False
+
+        # Find the MCS
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
+        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+        mcs_mol = MolFromSmarts(mcs.smartsString)
+
+        if not mcs_mol:
+            return False
+
+        # Map atoms from substrate to metabolite using substructure match
+        substrate_atoms = set(range(self.substrate.GetNumHeavyAtoms()))
+        mcs_match_substrate_atoms = set(self.substrate.GetSubstructMatch(mcs_mol))
+        deleted_atoms = substrate_atoms - mcs_match_substrate_atoms
+
+        # Extract deleted carbon fragment
+        deleted_carbons = []
+        for atom_idx in deleted_atoms:
+            atom = self.substrate.GetAtomWithIdx(atom_idx)
+            if atom.GetSymbol() == "C":
+                deleted_carbons.append(atom_idx)
+
+        # If no carbon was deleted, return False
+        if len(deleted_carbons) < 1:
+            return False
+
+        # Ensure the lost carbons formed a connected alkyl chain
+        visited = set()
+
+        def dfs(atom_idx):
+            """Depth-First Search to explore connected deleted carbons."""
+            if atom_idx in visited:
+                return
+            visited.add(atom_idx)
+            for neighbor in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors():
+                if (
+                    neighbor.GetIdx() in deleted_carbons
+                    and neighbor.GetIdx() not in visited
+                ):
+                    dfs(neighbor.GetIdx())
+
+        # Start DFS from the first deleted carbon
+        dfs(deleted_carbons[0])
+
+        # Check if all deleted carbons are part of one connected fragment
+        if visited != set(deleted_carbons):
+            return False
+
+        # Check if the deleted fragment is an alkyl chain (only C and H neighbors)
+        for atom_idx in deleted_carbons:
+            neighbors = [
+                n.GetSymbol()
+                for n in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors()
+            ]
+            for n in neighbors:
+                if n not in {"C", "H"}:
+                    deleted_carbons.remove(atom_idx)
+                    break
+
+        # Update SoMs
+        self.soms = list(deleted_carbons)
+        self.reaction_type = (
+            "complex (maximum common subgraph matching - alkyl chain deletion)"
+        )
+        log(self.logger_path, "Alkyl chain deletion detected. Corrected SoMs.")
+        return bool(self.soms)
+
     def _correct_carnitine_addition(self) -> bool:
-        """Correct SoMs for the addition of carnitine to a carboxylic acid if applicable."""
+        """Correct SoMs for the addition of carnitine to a carboxylic acid."""
         carnitine_pattern = MolFromSmarts("[N+](C)(C)(C)-C-C(O)C-C(=O)[O]")
 
         if (
@@ -182,7 +271,8 @@ class Annotator:
         return False
 
     def _correct_epoxide(self) -> bool:
-        """Correct the SoMs for halogen to hydroxy oxidation if the reaction produces an epoxide instead of the typical alcohol."""
+        """Correct the SoMs for halogen to hydroxy if \
+        the reaction produces an epoxide instead of the typical alcohol."""
         som_atom_in_metabolite = self.metabolite.GetAtomWithIdx(
             self.mapping[self.soms[0]]
         )
@@ -213,7 +303,7 @@ class Annotator:
         return False
 
     def _correct_ester_hydrolysis(self) -> bool:
-        """Correct SoMs for ester hydrolysis if applicable."""
+        """Correct SoMs for ester hydrolysis."""
         if not self.ester_hydrolysis:
             return False
 
@@ -237,8 +327,28 @@ class Annotator:
             return True
         return False
 
+    def _correct_oxacyclopropane_hydrolysis(self) -> bool:
+        """Corrects SoMs for oxacyclopropane hydrolysis reactions."""
+        smarts_oxacyclopropane = "C1OC1"
+        matched_atoms = set(
+            self.substrate.GetSubstructMatch(MolFromSmarts(smarts_oxacyclopropane))
+        )
+        if not matched_atoms.intersection(self.soms):
+            return False
+
+        self.soms = [
+            atom.GetIdx()
+            for atom in self.substrate.GetAtoms()
+            if atom.GetIdx() in matched_atoms and atom.GetAtomicNum() == 6
+        ]
+        self.reaction_type = (
+            "complex (maximum common subgraph matching - oxacyclopropane hydrolysis)"
+        )
+        log(self.logger_path, "Oxacyclopropane hydrolysis detected. Corrected SoMs.")
+        return bool(self.soms)
+
     def _correct_phosphate_hydrolysis(self) -> bool:
-        """Correct SoMs for phosphate hydrolysis if applicable."""
+        """Correct SoMs for phosphate hydrolysis."""
         phosphate_derivate_pattern = MolFromSmarts("P(=O)")
 
         if not self.substrate.GetSubstructMatch(phosphate_derivate_pattern):
@@ -280,7 +390,7 @@ class Annotator:
         return False
 
     def _correct_piperazine_ring_hydroysis(self) -> bool:
-        """Correct SoMs for piperazine ring opening if applicable."""
+        """Correct SoMs for piperazine ring opening."""
         piperazine_pattern = MolFromSmarts("N1CCNCC1")
 
         if not any(
@@ -304,8 +414,10 @@ class Annotator:
         return False
 
     def _correct_quinone_like_oxidation(self) -> bool:
-        # TODO: This is very unelegant and prone to errors. We need to find a better way to do this.
-        """Correct the SoMs for halogen to hydroxy oxidation if the reaction produces a quinone-like metabolite instead of the typical alcohol."""
+        # TODO: This is very unelegant and prone to errors.
+        # We need to find a better way to do this.
+        """Correct the SoMs for halogen to hydroxy if \
+        the reaction produces a quinone-like metabolite instead of the typical alcohol."""
         som_atom_in_metabolite = self.metabolite.GetAtomWithIdx(
             self.mapping[self.soms[0]]
         )
@@ -347,8 +459,37 @@ class Annotator:
                     return True
         return False
 
+    def _correct_ring_opening(self) -> bool:
+        """Corrects SoMs for ring-opening reactions."""
+        if (
+            self.metabolite.GetRingInfo().NumRings()
+            != self.substrate.GetRingInfo().NumRings() - 1
+        ):
+            return False
+
+        if len(self.soms) > 1:
+            som_symbols = [
+                self.substrate.GetAtomWithIdx(som).GetSymbol() for som in self.soms
+            ]
+            if som_symbols.count("C") == 1 and any(
+                sym in som_symbols for sym in ["O", "N", "S"]
+            ):
+                self.soms = [
+                    som
+                    for som in self.soms
+                    if self.substrate.GetAtomWithIdx(som).GetSymbol() == "C"
+                ]
+                self.reaction_type = (
+                    "complex (maximum common subgraph matching - heterocycle opening)"
+                )
+                log(self.logger_path, "Heterocycle opening detected. Corrected SoMs.")
+                return True
+
+        return False
+
     def _correct_sulfur_derivatives_hydrolysis(self) -> bool:
-        """Correct SoMs for the hydrolysis of sulfur derivatives (sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.) if applicable."""
+        """Correct SoMs for the hydrolysis of sulfur derivatives \
+        (sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.)."""
         if len(self.soms) != 1:
             return False
 
@@ -374,6 +515,22 @@ class Annotator:
         log(self.logger_path, "Sulfur-derivative hydrolysis detected. Corrected SoMs.")
         return True
 
+    def _correct_thiourea_reduction(self) -> bool:
+        """Corrects SoMs for thiourea reduction reactions."""
+        if not self.substrate.HasSubstructMatch(MolFromSmarts("NC(=S)N")):
+            return False
+
+        self.soms = [
+            som
+            for som in self.soms
+            if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
+        ]
+        self.reaction_type = (
+            "complex (maximum common subgraph matching - thiourea reduction)"
+        )
+        log(self.logger_path, "Thiourea reduction detected. Corrected SoMs.")
+        return bool(self.soms)
+
     def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
         """Check if an atom has both single and double bonded oxygen neighbors."""
         neighbor_bonds = [
@@ -388,11 +545,11 @@ class Annotator:
         params.timeout = 10
         params.AtomTyper = rdFMCS.AtomCompare.CompareElements
         params.BondTyper = rdFMCS.BondCompare.CompareOrder
-        params.BondCompareParameters.CompleteRingsOnly = True
-        params.BondCompareParameters.MatchFusedRings = True
+        params.BondCompareParameters.CompleteRingsOnly = False
+        params.BondCompareParameters.MatchFusedRings = False
         params.BondCompareParameters.MatchFusedRingsStrict = False
         params.BondCompareParameters.MatchStereo = False
-        params.BondCompareParameters.RingMatchesRingOnly = True
+        params.BondCompareParameters.RingMatchesRingOnly = False
         return params
 
     def _is_in_epoxide(self, som_id_in_metabolite: int) -> bool:
@@ -415,7 +572,8 @@ class Annotator:
         """Find the halogen atom in the substrate that is not present in the mapping."""
         halogen_symbols = ["F", "Cl", "Br", "I"]
         for atom in self.substrate.GetAtoms():
-            # self.mapping maps the atom indices in the metabolite to the atom indices in the substrate ({id_s: id_m}):
+            # self.mapping maps the atom indices in the metabolite to the
+            # atom indices in the substrate ({id_s: id_m}):
             if (
                 atom.GetSymbol() in halogen_symbols
                 and atom.GetIdx() not in self.mapping.values()
@@ -538,14 +696,15 @@ class Annotator:
 
     def _map_atoms_glutathione(self, source_mol, target_mol) -> dict:
         """
-        Map atoms between two molecules using Maximum Common Substructure (MCS).
+        Map atoms between two molecules using MCS.
 
         Args:
             source_mol (Mol): The source molecule.
             target_mol (Mol): The target molecule.
 
         Returns:
-            dict: A mapping between the atoms in the source molecule and the atoms in the target molecule.
+            dict: A mapping between the atoms in the source
+                  molecule and the atoms in the target molecule.
         """
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
         mcs = rdFMCS.FindMCS([source_mol, target_mol], self.params)
@@ -573,30 +732,44 @@ class Annotator:
         """Set the MCS bond compare parameter."""
         self.params.BondTyper = bond_typer_param
 
+    def _set_mcs_bond_compare_params_to_redox(self):
+        """Set the MCS bond compare parameters for redox reactions."""
+        self.params.BondCompareParameters.CompleteRingsOnly = True
+        self.params.BondCompareParameters.MatchFusedRings = True
+        self.params.BondCompareParameters.MatchFusedRingsStrict = True
+        self.params.BondCompareParameters.RingMatchesRingOnly = True
+
+    def _reset_mcs_bond_compare_params(self):
+        """Reset the MCS bond compare parameters to their default value."""
+        self.params.BondCompareParameters.CompleteRingsOnly = False
+        self.params.BondCompareParameters.MatchFusedRings = False
+        self.params.BondCompareParameters.MatchFusedRingsStrict = False
+        self.params.BondCompareParameters.RingMatchesRingOnly = False
+
     def compute_weight_ratio(self) -> int:
-        """Compute whether the substrate is lighter, heavier or equally heavy than the metabolite."""
+        """Compute whether the substrate is lighter, \
+        heavier or equally heavy than the metabolite."""
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate lighter than metabolite.")
             return 1
         if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate heavier than the metabolite.")
             return -1
-        else:
-            return 0
+        return 0
 
     def handle_complex_reaction(self) -> bool:
         """Annotate SoMs for complex reactions."""
-        log(self.logger_path, "Attempting global subgraph isomorphism matching.")
-        if self.handle_complex_reaction_global_subgraph_isomorphism_matching():
+        log(self.logger_path, "Attempting subgraph isomorphism matching.")
+        if self.handle_complex_reaction_subgraph_ismorphism_matching():
             return True
 
-        log(self.logger_path, "Attempting maximum common substructure (MCS) matching.")
-        if self.handle_complex_reaction_largest_common_subgraph_matching():
+        log(self.logger_path, "Attempting maximum common subgraph matching.")
+        if self.handle_complex_reaction_maximum_common_subgraph_matching():
             return True
 
         return False
 
-    def handle_complex_reaction_global_subgraph_isomorphism_matching(
+    def handle_complex_reaction_subgraph_ismorphism_matching(
         self,
     ) -> bool:
         """
@@ -617,7 +790,7 @@ class Annotator:
         if graph_matching.is_isomorphic():
             log(
                 self.logger_path,
-                "Global graph matching found! Metabolite is an isomorphic subgraph of the substrate.",
+                "Subgraph isomorphism matching found! Metabolite is an isomorphic subgraph of the substrate.",
             )
             self.mapping = graph_matching.mapping
             already_matched_metabolite_atom_indices = set(self.mapping.values())
@@ -630,12 +803,12 @@ class Annotator:
             if graph_matching.is_isomorphic():
                 log(
                     self.logger_path,
-                    "Global graph matching found! Substrate is an isomorphic subgraph of the metabolite.",
+                    "Subgraph isomorphism matching found! Substrate is an isomorphic subgraph of the metabolite.",
                 )
                 self.mapping = graph_matching.mapping
                 already_matched_metabolite_atom_indices = set(self.mapping.keys())
             else:
-                log(self.logger_path, "No global graph matching found.")
+                log(self.logger_path, "No subgraph isomorphism matching found.")
                 return False
 
         # Check if the mapping is complete
@@ -657,9 +830,12 @@ class Annotator:
                 except IndexError:
                     self.mapping[atom_s.GetIdx()] = -1
 
-        # Compute the SoMs by comparing the degree and the atomic numbers of the atoms in the substrate and the metabolite
-        # If 1.) the degree or 2.) the neighbors of the atoms in the substrate and the metabolite are different (in terms of atomic number),
-        # or 3.) the number of bonded hydrogens is different, then the atom is a SoM.
+        # Compute the SoMs by comparing the atoms in the substrate and the metabolite:
+        # if 1.) the degree,
+        # or 2.) the neighbors (in terms of atomic number),
+        # or 3.) the number of bonded hydrogens,
+        # or 4.) the charge,
+        # are different, then the atom is a SoM.
         self.soms = [
             atom_id_s
             for atom_id_s, atom_id_m in self.mapping.items()
@@ -681,154 +857,68 @@ class Annotator:
                 )
                 or self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
+                or self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
+                != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge()
             )
         ]
-        self.reaction_type = "complex (global graph matching)"
+        self.reaction_type = "complex (subgraph isomorphism matching)"
         return True
 
-    def handle_complex_reaction_largest_common_subgraph_matching(
+    def handle_complex_reaction_maximum_common_subgraph_matching(
         self,
     ) -> bool:
         """
-        Annotate SoMs for complex reactions using largest common subgraph matching (maximum common substructure).
+        Annotate SoMs for complex reactions using largest common \
+        subgraph (maximum common substructure) matching.
 
         Returns:
             bool: True if a complex reaction is found, False otherwise.
         """
-        params = self.params
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], params)
+        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
 
-        if mcs.numAtoms > 0:
-            highlights_substrate = self.substrate.GetSubstructMatch(mcs.queryMol)
-            highlights_metabolite = self.metabolite.GetSubstructMatch(mcs.queryMol)
-            self.mapping = dict(zip(highlights_substrate, highlights_metabolite))
+        if mcs.numAtoms == 0:
+            return False
 
-            # Map the unmapped atoms in the substrate to the remaining atoms in the metabolite
-            # based on the Tanimoto similarity of their Morgan fingerprints
-            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=1024)
-            atom_based_fp_metabolite = [
-                mfpgen.GetFingerprint(self.metabolite, fromAtoms=[atom_m.GetIdx()])
-                for atom_m in self.metabolite.GetAtoms()
-            ]
-            already_matched_atom_indices = set(highlights_metabolite)
+        self.mapping = dict(
+            zip(
+                self.substrate.GetSubstructMatch(mcs.queryMol),
+                self.metabolite.GetSubstructMatch(mcs.queryMol),
+            )
+        )
 
-            for atom_s in self.substrate.GetAtoms():
-                if atom_s.GetIdx() not in highlights_substrate:
-                    # Calculate the Morgan fingerprint for the atom in the substrate
-                    atom_based_fp_substrate = mfpgen.GetFingerprint(
-                        self.substrate,
-                        fromAtoms=[atom_s.GetIdx()],
-                    )
-                    # Calculate the Tanimoto similarity between the atom in the substrate and all atoms in the metabolite
-                    similarities = [
-                        TanimotoSimilarity(
-                            atom_based_fp_substrate,
-                            atom_based_fp_metabolite[atom_m.GetIdx()],
-                        )
-                        for atom_m in self.metabolite.GetAtoms()
-                    ]
-
-                    # Assign the atom in the metabolite with the highest similarity to the atom in the substrate
-                    for _ in range(self.metabolite.GetNumHeavyAtoms()):
-                        if (self.mapping.get(atom_s.GetIdx()) is None) and (
-                            np.argmax(similarities) not in already_matched_atom_indices
-                        ):
-                            self.mapping[atom_s.GetIdx()] = int(np.argmax(similarities))
-                            already_matched_atom_indices.add(np.argmax(similarities))
-                            break
-                        similarities[np.argmax(similarities)] = 0
-
-                    # If no atom in the metabolite is assigned to the atom in the substrate, assign the first available atom
-                    if self.mapping.get(atom_s.GetIdx()) is None:
-                        try:
-                            first_of_remaining_unmapped_ids = [
-                                i
-                                for i in range(self.metabolite.GetNumHeavyAtoms())
-                                if i not in already_matched_atom_indices
-                            ][0]
-                            self.mapping[
-                                atom_s.GetIdx()
-                            ] = first_of_remaining_unmapped_ids
-                            already_matched_atom_indices.add(
-                                first_of_remaining_unmapped_ids
-                            )
-                        except IndexError:
-                            self.mapping[atom_s.GetIdx()] = -1
-
-            # Compute the SoMs by comparing the degree and the atomic numbers of the atoms in the substrate and the metabolite
-            # If 1.) the degree or 2.) the neighbors of the atoms in the substrate and the metabolite are different (in terms of atomic number),
-            # or 3.) the number of bonded hydrogens is different, then the atom is a SoM.
-            self.soms = [
-                atom_id_s
-                for atom_id_s, atom_id_m in self.mapping.items()
-                if atom_id_m != -1
-                and (
-                    self.substrate.GetAtomWithIdx(atom_id_s).GetDegree()
-                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetDegree()
-                    or set(
-                        neighbor.GetAtomicNum()
-                        for neighbor in self.substrate.GetAtomWithIdx(
-                            atom_id_s
-                        ).GetNeighbors()
-                    )
-                    != set(
-                        neighbor.GetAtomicNum()
-                        for neighbor in self.metabolite.GetAtomWithIdx(
-                            atom_id_m
-                        ).GetNeighbors()
-                    )
-                    or self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
-                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
-                )
-            ]
-            self.reaction_type = "complex (partial graph matching)"
-
-            # Add an exception for the reduction of thiourea groups
-            smarts_thiourea = "NC(=S)N"
-            if self.substrate.HasSubstructMatch(MolFromSmarts(smarts_thiourea)):
-                corrected_thiourea_soms = [
-                    som
-                    for som in self.soms
-                    if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
-                ]
-                self.soms = corrected_thiourea_soms
-                self.reaction_type = "complex (thiourea reduction)"
-                log(self.logger_path, "Thiourea reduction detected. Corrected SoMs.")
-
-            # Correct SoMs for the hydrolysis of oxacyclopropane rings
-            smarts_oxycyclopropane = "C1OC1"
+        # Identify SoMs based on atom environment differences.
+        # if 1.) the neighbors (in terms of atomic number),
+        # or 2.) the number of bonded hydrogens,
+        # are different, then the atom is a SoM.
+        self.soms = [
+            atom_id_s
+            for atom_id_s, atom_id_m in self.mapping.items()
             if (
-                len(
-                    set(self.soms).intersection(
-                        set(
-                            self.substrate.GetSubstructMatch(
-                                MolFromSmarts(smarts_oxycyclopropane)
-                            )
-                        )
-                    )
-                )
-                > 0
-            ):
-                corrected_soms_oxacyclopropane = [
-                    atom.GetIdx()
-                    for atom in self.substrate.GetAtoms()
-                    if (
-                        atom.GetIdx()
-                        in self.substrate.GetSubstructMatch(
-                            MolFromSmarts(smarts_oxycyclopropane)
-                        )
-                    )
-                    & (atom.GetAtomicNum() == 6)
-                ]
-                self.soms = corrected_soms_oxacyclopropane
-                self.reaction_type = "complex (oxacyclopropane hydrolysis)"
-                log(
-                    self.logger_path,
-                    "Oxacyclopropane hydrolysis detected. Corrected SoMs.",
-                )
+                get_neighbor_atomic_nums(self.substrate, atom_id_s)
+                != get_neighbor_atomic_nums(self.metabolite, atom_id_m)
+            )
+            or (
+                self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
+                != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
+            )
+        ]
+        if bool(self.soms):
+            self.reaction_type = "complex (maximum common subgraph matching)"
+
+        if self._correct_thiourea_reduction():
             return True
-        return False
+
+        if self._correct_oxacyclopropane_hydrolysis():
+            return True
+
+        if self._correct_ring_opening():
+            return True
+
+        # if self._correct_alkyl_chain_deletion():
+        #     return True
+
+        return bool(self.soms)
 
     def handle_glutathione_conjugation(self) -> bool:
         """
@@ -848,7 +938,8 @@ class Annotator:
                 # Identify the sulfur atom
                 s_index = self._find_sulfur_index(glutathione_indices)
                 if s_index is not None:
-                    # Identify the neigbor of the sulfur atom that is not part of the glutathione moiety
+                    # Identify the neigbor of the sulfur atom
+                    # that is not part of the glutathione moiety
                     s_neighbor_index = self._find_sulfur_neighbor_index(
                         s_index, glutathione_indices
                     )
@@ -897,7 +988,7 @@ class Annotator:
 
     def handle_halogen_to_hydroxy(self) -> bool:
         """
-        Annotate SoMs for halogen to hydroxy oxidation.
+        Annotate SoMs for halogen to hydroxy.
 
         Returns:
             bool: True if annotation is successful, False otherwise.
@@ -918,25 +1009,25 @@ class Annotator:
 
             # The SoM is the neighbor of that halogen atom
             self.soms = [halogen_atom.GetNeighbors()[0].GetIdx()]
-            self.reaction_type = "halogen to hydroxy oxidation"
+            self.reaction_type = "halogen to hydroxy"
 
             # If the reaction produces an epoxide (instead of the typical alcohol),
             # find the other atom that is part of the epoxide and add it to the SoMs
             if self._is_in_epoxide(self.mapping[self.soms[0]]):
                 if self._correct_epoxide():
-                    self.reaction_type = "halogen to epoxide oxidation"
+                    self.reaction_type = "halogen to epoxide"
                     return True
 
             if self._is_in_quinone(self.mapping[self.soms[0]]):
                 if self._correct_quinone_like_oxidation():
-                    self.reaction_type = "halogen to quinone-like oxidation"
+                    self.reaction_type = "halogen to quinone-like"
                     return True
 
             return True
         except (ValueError, KeyError, AttributeError) as e:
             log(
                 self.logger_path,
-                f"Halogen to hydroxy oxidation matching failed. Error: {e}",
+                f"Halogen to hydroxy matching failed. Error: {e}",
             )
             return False
 
@@ -1027,7 +1118,9 @@ class Annotator:
         try:
             log(self.logger_path, "Attempting redox reaction matching.")
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+            self._set_mcs_bond_compare_params_to_redox()
             mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+            self._reset_mcs_bond_compare_params()
 
             # Check if the MCS covers all but one heavy atom in the substrate
             if mcs.numAtoms != (self.substrate.GetNumHeavyAtoms() - 1):
@@ -1103,7 +1196,8 @@ class Annotator:
         return False
 
     def is_halogen_to_hydroxy(self) -> bool:
-        """Check if the reaction is an oxidation of a halogen to a hydroxy/epoxide functional group."""
+        """Check if the reaction is an oxidation of \
+        a halogen to a hydroxy/epoxide functional group."""
         substrate_elements = count_elements(self.substrate)
         metabolite_elements = count_elements(self.metabolite)
 
@@ -1112,7 +1206,7 @@ class Annotator:
             and is_halogen_count_decreased(substrate_elements, metabolite_elements)
             and is_oxygen_count_increased(substrate_elements, metabolite_elements)
         ):
-            log(self.logger_path, "Halogen to hydroxy oxidation detected.")
+            log(self.logger_path, "Halogen to hydroxy detected.")
             return True
         return False
 
@@ -1155,7 +1249,7 @@ def annotate_soms(
     filter_size: int,
     ester_hydrolysis: bool,
 ) -> Callable[[], Tuple[List[int], str]]:
-    """Annotates the SoMs for a given substrate-metabolite pair."""
+    """Annotates SoMs for a given substrate-metabolite pair."""
     som_finder = Annotator(
         substrate,
         metabolite,
@@ -1187,7 +1281,8 @@ def annotate_soms(
 
     # The next steps rely more heavily on MCS matching,
     # which can take very long for large molecules,
-    # so we skip them if the substrate or metabolite is too large.
+    # so we skip them if the substrate or metabolite is
+    # too large (filter_size parameter).
     if som_finder.is_too_large_to_process():
         return som_finder.log_and_return_soms()
 

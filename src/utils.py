@@ -1,4 +1,7 @@
-"""This module provides various utility functions for processing and analyzing molecular data using RDKit, pandas, and NetworkX."""
+# pylint: disable=E1101
+
+"""This module provides various utility functions for processing and \
+analyzing molecular data using RDKit, pandas, and NetworkX."""
 
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -64,19 +67,16 @@ def _set_allowed_elements_flag(mol: Mol) -> int:
 
 
 def _standardize_row(row: pd.Series) -> pd.Series:
-    """Standardize a dataframe row of the containing the substrate and metabolite molecules.
+    """Standardize a dataframe row of the containing the substrate and metabolite.
 
     Args:
-        row (pd.Series): Row of the dataframe containing the substrate and metabolite molecules.
+        row (pd.Series): Row of the dataframe containing the substrate and metabolite.
 
     Returns:
-        pd.Series: Standardized row of the dataframe containing the substrate and metabolite molecules.
+        pd.Series: Standardized row of the dataframe containing the substrate and metabolite.
     """
     try:
-        row["substrate_mol"] = rdMolStandardize.Cleanup(row["substrate_mol"])
         row["substrate_mol"] = rdMolStandardize.CanonicalTautomer(row["substrate_mol"])
-
-        row["metabolite_mol"] = rdMolStandardize.Cleanup(row["metabolite_mol"])
         row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
             row["metabolite_mol"]
         )
@@ -85,6 +85,18 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         row["substrate_mol"] = None
         row["metabolite_mol"] = None
     return row
+
+
+def check_and_collapse_substrate_id(substrate_id: List) -> int:
+    """Collapse substrate id to a single id if multiple ids are present."""
+    if substrate_id is None:
+        return None
+    if len(set(substrate_id)) > 1:
+        print(f"Warning: Multiple substrate ids found: {substrate_id}")
+        return None
+    if isinstance(substrate_id, list):
+        return substrate_id.pop()
+    return substrate_id
 
 
 def concat_lists(lst: List) -> List:
@@ -117,13 +129,15 @@ def count_elements(mol: Mol) -> dict:
 
 
 def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
-    """Curate the data according to a subset of the rules defined in the SoM predictor (AweSOM).
+    """Curate the data according to the following rules.
 
     Rules:
-    (1) Compute each compound's InChI. Remove any entries for which an InChI cannot be computed, and entries with identical database-internal molecular identifiers but differing InChI.
-    (2) Discard compounds containing any chemical element other than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
-    (3) Discard compounds with molecular mass above 1000 Da.
-    (4) Discard compounds with fewer than 5 heavy atoms.
+    (1) Compute each compound's InChI.
+    Remove any entries for which an InChI cannot be computed,
+    and entries with identical database-internal molecular identifiers but differing InChI.
+    (2) Discard compounds containing any chemical element other
+    than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
+    (3) Remove all hydrogen atoms.
 
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
@@ -138,7 +152,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     data = data.dropna(subset=["substrate_inchi", "metabolite_inchi"])
     log(
         logger_path,
-        f"Removed {data_size - len(data)} reactions with missing InChI. Data set now contains {len(data)} reactions.",
+        f"Removed {data_size - len(data)} reactions with missing InChI.",
     )
     data_size = len(data)
 
@@ -154,7 +168,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     ]
     log(
         logger_path,
-        f"Chemical element filter removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
+        f"Chemical element filter removed {data_size - len(data)} reactions.",
     )
     data_size = len(data)
 
@@ -171,35 +185,15 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     # Reset the index
     data = data.reset_index(drop=True, inplace=False)
 
-    return data
-
-
-def is_carbon_count_unchanged(
-    substrate_elements: dict, metabolite_elements: dict
-) -> bool:
-    """Check if the number of carbons remains the same."""
-    return substrate_elements.get("C", 0) == metabolite_elements.get("C", 0)
-
-
-def is_halogen_count_decreased(
-    substrate_elements: dict, metabolite_elements: dict
-) -> bool:
-    """Check if the number of halogens decreases by 1."""
-    for hal in ["F", "Cl", "Br", "I"]:
-        if (substrate_elements.get(hal, 0) - 1 == metabolite_elements.get(hal, 0)) or (
-            substrate_elements.get(hal, 0) == 1 and metabolite_elements.get(hal, 0) == 0
-        ):
-            return True
-    return False
-
-
-def is_oxygen_count_increased(
-    substrate_elements: dict, metabolite_elements: dict
-) -> bool:
-    """Check if the number of oxygens increases by 1."""
-    return substrate_elements.get("O", 0) + 1 == metabolite_elements.get("O", 0) or (
-        substrate_elements.get("O", 0) == 0 and metabolite_elements.get("O", 0) == 1
+    # Remove all hydrogen atoms
+    data["substrate_mol"] = data["substrate_mol"].apply(
+        lambda x: Chem.RemoveAllHs(x) if x is not None else None
     )
+    data["metabolite_mol"] = data["metabolite_mol"].apply(
+        lambda x: Chem.RemoveAllHs(x) if x is not None else None
+    )
+
+    return data
 
 
 def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
@@ -231,6 +225,42 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
         return 4
 
     return None  # In case of an unknown bond type
+
+
+def get_neighbor_atomic_nums(mol, atom_id) -> set:
+    """Return a set of atomic numbers of neighboring atoms."""
+    return {
+        neighbor.GetAtomicNum()
+        for neighbor in mol.GetAtomWithIdx(atom_id).GetNeighbors()
+    }
+
+
+def is_carbon_count_unchanged(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of carbons remains the same."""
+    return substrate_elements.get("C", 0) == metabolite_elements.get("C", 0)
+
+
+def is_halogen_count_decreased(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of halogens decreases by 1."""
+    for hal in ["F", "Cl", "Br", "I"]:
+        if (substrate_elements.get(hal, 0) - 1 == metabolite_elements.get(hal, 0)) or (
+            substrate_elements.get(hal, 0) == 1 and metabolite_elements.get(hal, 0) == 0
+        ):
+            return True
+    return False
+
+
+def is_oxygen_count_increased(
+    substrate_elements: dict, metabolite_elements: dict
+) -> bool:
+    """Check if the number of oxygens increases by 1."""
+    return substrate_elements.get("O", 0) + 1 == metabolite_elements.get("O", 0) or (
+        substrate_elements.get("O", 0) == 0 and metabolite_elements.get("O", 0) == 1
+    )
 
 
 def log(path: str, message: str) -> None:
@@ -280,14 +310,15 @@ def standardize_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
 
     log(
         logger_path,
-        f"Standardization removed {data_size - len(data)} reactions. Data set now contains {len(data)} reactions.",
+        f"Standardization removed {data_size - len(data)} reactions.",
     )
 
     return data
 
 
 def symmetrize_soms(mol: Mol, soms: List[int]) -> List[int]:
-    """Add all atoms in a symmetry group to the list of SoMs, if any atom in the group is already a SoM.
+    """Add all atoms in a symmetry group to the list of SoMs, \
+    if any atom in the group is already a SoM.
 
     Args:
         mol (Mol): RDKit molecule
