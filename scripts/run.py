@@ -1,4 +1,5 @@
-"""This script predicts Sites of Metabolism (SoMs) for unseen data using pairs of molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
+"""This script predicts Sites of Metabolism (SoMs) for unseen data using pairs \
+of molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
 
 The script performs the following steps:
 1. Parses command-line arguments to get input and output paths, input data type, and filter size.
@@ -18,7 +19,8 @@ Command-line arguments:
     -t, --type: str, required
         The type of input data. Choose between "inchi" and "smiles".
     -f, --filter_size: int, optional, default=40
-        The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.
+        The maximum number of heavy atoms tolerated in both substrate and metabolite 
+        prior to running redox matching or MCS matching.
         The runtime can get very high for large molecules.
 
 Example usage:
@@ -35,8 +37,9 @@ import pandas as pd
 from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
 from tqdm import tqdm
 
-from soman.annotator import annotate_soms
-from soman.utils import concat_lists, curate_data, log, symmetrize_soms
+from src.annotator import annotate_soms
+from src.utils import (check_and_collapse_substrate_id, concat_lists,
+                       curate_data, log, standardize_data, symmetrize_soms)
 
 np.random.seed(seed=42)
 tqdm.pandas()
@@ -76,7 +79,8 @@ if __name__ == "__main__":
         type=int,
         required=False,
         default=45,
-        help="The maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching.\
+        help="The maximum number of heavy atoms tolerated in both substrate and metabolite \
+              prior to running redox matching or MCS matching.\
               The runtime can get very high for large molecules.",
     )
 
@@ -84,8 +88,10 @@ if __name__ == "__main__":
         "-e",
         "--ester_hydrolysis",
         required=False,
-        help="Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.\
-              If the -e argument is set, the annotation of ester hydrolysis is consistent with MetaQSAR.",
+        help="Per default, SOMAN annotates ester hydrolyses with \
+            the same logic as dealkylation reactions.\
+                If the -e argument is set, the annotation \
+                    of ester hydrolysis is consistent with MetaQSAR.",
         action=argparse.BooleanOptionalAction,
     )
 
@@ -127,7 +133,7 @@ if __name__ == "__main__":
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
     data = curate_data(data, logger_path)
-    # data = standardize_data(data, logger_path)
+    data = standardize_data(data, logger_path)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
     data[["soms", "annotation_rule"]] = data.progress_apply(
@@ -173,13 +179,14 @@ if __name__ == "__main__":
         ],
     )
 
-    #################### Merge all soms from the same substrates and output annotated data ####################
+    ###### Merge all soms from the same substrates and output annotated data ######
     # One substrate can undergo multiple reactions, leading to multiple metabolites.
-    # This step merges all the soms from the same substrate and outputs the data in a single SDF file.
+    # This step merges all the soms from the same substrate and outputs the data
+    # in a single SDF file.
 
     data["substrate_inchi"] = data.substrate_mol.map(MolToInchi)
     data_grouped = data.groupby("substrate_inchi", as_index=False).agg(
-        {"soms": concat_lists, "substrate_id": list}
+        {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
     data_grouped_first = data.groupby("substrate_inchi", as_index=False).first()[
         ["substrate_inchi", "substrate_name", "substrate_mol"]
@@ -196,6 +203,7 @@ if __name__ == "__main__":
 
     log(
         logger_path,
-        f"Average number of soms per compound: {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}",
+        f"Average number of soms per compound: \
+        {round(np.mean(np.array([len(lst) for lst in data_merged.soms.values])), 2)}",
     )
     log(logger_path, f"Total runtime: {datetime.now() - start}")
