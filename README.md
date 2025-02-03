@@ -10,11 +10,11 @@ Clone the repository and cd into the repository root:
 
 Create a conda environment with the required python version:
 
-`conda create --name soman python=3.11`
+`conda create --name soman-env python=3.11`
 
 Activate the environment:
 
-`conda activate soman`
+`conda activate soman-env`
 
 Install soman package:
 
@@ -33,7 +33,7 @@ The `OUTPUT_PATH` is the path where the output (annotated) data as well as the l
 
 The `TYPE` indicates whether the input data contains SMILES of InChIs. Please choose between `smiles` and `inchi`.
 
-The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running redox matching or MCS matching. The default value is 45. The lower the value, the more reactions are filtered out, and the faster the algorithm runs.
+The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running some MCS matching operations. The default value is 45. The lower the value, the faster the algorithm runs, but the more reactions are filtered out.
 
 The `-e` flag controls the strategy for annotating ester hydrolyses. Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom). If the -e argument is set, the annotation is on the carbonyl C-atom, which is consistent with the MetaQSAR data set.
 
@@ -42,4 +42,4 @@ The `-e` flag controls the strategy for annotating ester hydrolyses. Per default
 
 You can use the `sandbox` Jupyter Notebook to visualize your results. For this, you'll first need to install the `ipykernel` and `ipywidgets` packages with pip. You can choose this option directly when installing the package by running:
 
-`pip install -e .[visualize]`
+`pip install -e .[vis]`
