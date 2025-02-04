@@ -66,14 +66,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-t",
-        "--type",
-        type=str,
-        required=True,
-        help='The type of input data. Choose between "inchi" and "smiles".',
-    )
-
-    parser.add_argument(
         "-f",
         "--filter_size",
         type=int,
@@ -105,31 +97,9 @@ if __name__ == "__main__":
 
     data = pd.read_csv(args.inputPath, header="infer")
 
-    if "substrate_id" not in data.columns:
-        data["substrate_id"] = "n.a."
-    if "substrate_name" not in data.columns:
-        data["substrate_name"] = "n.a."
-    if "metabolite_id" not in data.columns:
-        data["metabolite_id"] = "n.a."
-    if "metabolite_name" not in data.columns:
-        data["metabolite_name"] = "n.a."
+    data["substrate_mol"] = data.substrate_smiles.map(MolFromSmiles)
+    data["metabolite_mol"] = data.metabolite_smiles.map(MolFromSmiles)
 
-    if args.type == "inchi":
-        data["substrate_mol"] = data.iloc[:, 0].map(MolFromInchi)
-        data["metabolite_mol"] = data.iloc[:, 1].map(MolFromInchi)
-    elif args.type == "smiles":
-        data["substrate_mol"] = data.iloc[:, 0].map(MolFromSmiles)
-        data["metabolite_mol"] = data.iloc[:, 1].map(MolFromSmiles)
-    else:
-        raise ValueError("Invalid type argument.")
-
-    data.rename(
-        columns={
-            data.columns[0]: "substrate_string",
-            data.columns[1]: "substrate_string",
-        },
-        inplace=True,
-    )
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
     data = curate_data(data, logger_path)
@@ -156,27 +126,21 @@ if __name__ == "__main__":
         df=data,
         out=os.path.join(args.outputPath, "substrates.sdf"),
         molColName="substrate_mol",
-        properties=[
-            "substrate_id",
-            "substrate_name",
-            "metabolite_id",
-            "metabolite_name",
-            "soms",
-            "annotation_rule",
-        ],
+        properties=data.columns.tolist(),
     )
 
     PandasTools.WriteSDF(
         df=data,
         out=os.path.join(args.outputPath, "metabolites.sdf"),
         molColName="metabolite_mol",
-        properties=[
-            "substrate_id",
-            "substrate_name",
-            "metabolite_id",
-            "metabolite_name",
-            "soms",
-        ],
+        properties=data.columns.tolist(),
+    )
+
+    data.to_csv(
+        os.path.join(args.outputPath, "annotated_data.csv"),
+        columns=[column for column in data.columns if "mol" not in column],
+        header=True,
+        index=False,
     )
 
     ###### Merge all soms from the same substrates and output annotated data ######
@@ -189,7 +153,13 @@ if __name__ == "__main__":
         {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
     data_grouped_first = data.groupby("substrate_inchi", as_index=False).first()[
-        ["substrate_inchi", "substrate_name", "substrate_mol"]
+        [
+            column
+            for column in data.columns
+            if "metabolite" not in column
+            and "annotation_rule" not in column
+            and "soms" not in column
+        ]
     ]
 
     data_merged = data_grouped.merge(data_grouped_first, how="inner")
@@ -198,7 +168,7 @@ if __name__ == "__main__":
         df=data_merged,
         out=os.path.join(args.outputPath, "merged.sdf"),
         molColName="substrate_mol",
-        properties=["substrate_id", "substrate_name", "soms"],
+        properties=data_merged.columns.tolist(),
     )
 
     log(

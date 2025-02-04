@@ -31,7 +31,7 @@ class Annotator:
 
     Methods:
         _correct_acetal_hydrolysis: Correct SoMs for acetals.
-        _correct_alkyl_chain_deletion: Correct SoMs for the deletion of 
+        _correct_alkyl_chain_deletion: Correct SoMs for the deletion of
             one or more carbon atoms from an alkyl chain.
         _correct_carnitine_addition: Correct SoMs for the addition of carnitine to a carboxylic
             acid.
@@ -66,9 +66,9 @@ class Annotator:
         _map_atoms_glutathione: Map atoms between two molecules using MCS.
         _map_atoms: Create mapping between query and target based on MCS.
         _set_mcs_bond_typer_param: Set the MCS bond compare parameter.
-        _set_mcs_bond_compare_params_to_redox: Set the MCS bond compare parameters 
+        _set_mcs_bond_compare_params_to_redox: Set the MCS bond compare parameters
             for redox reactions.
-        _reset_mcs_bond_compare_params: Reset the MCS bond compare parameters to their 
+        _reset_mcs_bond_compare_params: Reset the MCS bond compare parameters to their
             default value.
         handle_complex_reaction: Handle complex reactions.
         handle_complex_reaction_subgraph_ismorphism_matching: Annotate SoMs for complex

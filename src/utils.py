@@ -5,7 +5,7 @@ analyzing molecular data using RDKit, pandas, and NetworkX."""
 
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import List
+from typing import Iterable, List
 
 import networkx as nx
 import pandas as pd
@@ -87,16 +87,16 @@ def _standardize_row(row: pd.Series) -> pd.Series:
     return row
 
 
-def check_and_collapse_substrate_id(substrate_id: List) -> int:
-    """Collapse substrate id to a single id if multiple ids are present."""
+def check_and_collapse_substrate_id(substrate_id) -> int:
+    """Collapse substrate_id to a single id if multiple ids are present."""
     if substrate_id is None:
         return None
-    if len(set(substrate_id)) > 1:
-        print(f"Warning: Multiple substrate ids found: {substrate_id}")
-        return None
-    if isinstance(substrate_id, list):
-        return substrate_id.pop()
-    return substrate_id
+    substrate_id_lst = substrate_id.to_list()
+    if len(substrate_id_lst) > 1:
+        if len(set(substrate_id_lst)) > 1:
+            print(f"Warning: Multiple substrate ids found: {substrate_id_lst}")
+            return None
+    return substrate_id_lst[0]
 
 
 def concat_lists(lst: List) -> List:

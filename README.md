@@ -27,11 +27,9 @@ To annotate data, please run:
 
 `python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE -f FILTER_SIZE -e`
 
-The `INPUT_PATH` is the path to your input data. The file format must be .csv. The first and second columns should contain either smiles or inchi of the substrate and metabolite, respectively.
+The `INPUT_PATH` is the path to your input data. The file format must be .csv. It should contain a "substrate_smiles" and a "metabolite_smiles" column containing the SMILES string of the substrate and metabolite, respectively, and a "substrate_id" column and "metabolite_id" column containing numerical identifiers of the substrate and metabolite, respectively. Any number and naming of additional column(s) is allowed. The ordering of columns is not important.
 
 The `OUTPUT_PATH` is the path where the output (annotated) data as well as the log file will be written.
-
-The `TYPE` indicates whether the input data contains SMILES of InChIs. Please choose between `smiles` and `inchi`.
 
 The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running some MCS matching operations. The default value is 45. The lower the value, the faster the algorithm runs, but the more reactions are filtered out.
 
