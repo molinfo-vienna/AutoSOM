@@ -39,8 +39,14 @@ from rdkit.Chem import MolFromSmiles, MolToInchi
 from tqdm import tqdm
 
 from src.annotator import annotate_soms
-from src.utils import (check_and_collapse_substrate_id, concat_lists,
-                       curate_data, log, standardize_data, symmetrize_soms)
+from src.utils import (
+    check_and_collapse_substrate_id,
+    concat_lists,
+    curate_data,
+    log,
+    standardize_data,
+    symmetrize_soms,
+)
 
 np.random.seed(seed=42)
 tqdm.pandas()

@@ -6,13 +6,26 @@ given a substrate and a metabolite molecule."""
 from typing import List, Optional, Tuple
 
 from networkx.algorithms import isomorphism
-from rdkit.Chem import (Atom, FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts,
-                        MolFromSmiles, rdFMCS)
+from rdkit.Chem import (
+    Atom,
+    FragmentOnBonds,
+    GetMolFrags,
+    Mol,
+    MolFromSmarts,
+    MolFromSmiles,
+    rdFMCS,
+)
 
-from src.utils import (count_elements, get_bond_order,
-                       get_neighbor_atomic_nums, is_carbon_count_unchanged,
-                       is_halogen_count_decreased, is_oxygen_count_increased,
-                       log, mol_to_graph)
+from src.utils import (
+    count_elements,
+    get_bond_order,
+    get_neighbor_atomic_nums,
+    is_carbon_count_unchanged,
+    is_halogen_count_decreased,
+    is_oxygen_count_increased,
+    log,
+    mol_to_graph,
+)
 
 
 class Annotator:
