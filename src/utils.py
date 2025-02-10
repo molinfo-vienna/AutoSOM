@@ -5,7 +5,7 @@ analyzing molecular data using RDKit, pandas, and NetworkX."""
 
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Iterable, List
+from typing import List, Optional
 
 import networkx as nx
 import pandas as pd
@@ -87,7 +87,7 @@ def _standardize_row(row: pd.Series) -> pd.Series:
     return row
 
 
-def check_and_collapse_substrate_id(substrate_id) -> int:
+def check_and_collapse_substrate_id(substrate_id) -> Optional[int]:
     """Collapse substrate_id to a single id if multiple ids are present."""
     if substrate_id is None:
         return None
@@ -111,7 +111,7 @@ def concat_lists(lst: List) -> List:
     return list(set(sum(lst, [])))
 
 
-def count_elements(mol: Mol) -> dict:
+def count_elements(mol: Mol) -> dict[str, int]:
     """Count the number of atoms of each element in a molecule.
 
     Args:
@@ -120,7 +120,7 @@ def count_elements(mol: Mol) -> dict:
     Returns:
         dict: Dictionary containing the counts of each element in the molecule.
     """
-    element_counts = Counter()
+    element_counts: dict[str, int] = Counter()
     periodic_table = GetPeriodicTable()
     for atom in mol.GetAtoms():
         element = periodic_table.GetElementSymbol(atom.GetAtomicNum())
@@ -196,7 +196,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     return data
 
 
-def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
+def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> Optional[int]:
     """Get the order of the bond between two specified atoms.
 
     Args:
@@ -207,13 +207,11 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
         The bond order (1 for single, 2 for double, 3 for triple, 4 for aromatic).
         Returns None if no bond exists between the specified atoms.
     """
-    # Get the bond between the specified atoms
     bond = molecule.GetBondBetweenAtoms(atom_idx1, atom_idx2)
 
     if bond is None:
-        return None  # No bond exists between the specified atoms
+        return None
 
-    # Determine the bond multiplicity based on the bond type
     bond_type = bond.GetBondType()
     if bond_type == Chem.BondType.SINGLE:
         return 1
@@ -224,7 +222,7 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> int:
     if bond_type == Chem.BondType.AROMATIC:
         return 4
 
-    return None  # In case of an unknown bond type
+    return None
 
 
 def get_neighbor_atomic_nums(mol, atom_id) -> set:

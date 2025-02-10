@@ -3,10 +3,10 @@
 """This module provides functionalities for annotating the sites of metabolism (SoMs) \
 given a substrate and a metabolite molecule."""
 
-from typing import Callable, List, Tuple
+from typing import List, Optional, Tuple
 
 from networkx.algorithms import isomorphism
-from rdkit.Chem import (FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts,
+from rdkit.Chem import (Atom, FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts,
                         MolFromSmiles, rdFMCS)
 
 from src.utils import (count_elements, get_bond_order,
@@ -111,9 +111,9 @@ class Annotator:
         self.filter_size = filter_size
         self.ester_hydrolysis = ester_hydrolysis
         self.params = self._initialize_mcs_params()
-        self.mapping = {}
-        self.soms = []
-        self.reaction_type = "unknown"
+        self.mapping: dict[int, int] = {}
+        self.soms: List[int] = []
+        self.reaction_type: str = "unknown"
 
     def _correct_acetal_hydrolysis(self) -> bool:
         """Correct SoMs for acetals."""
@@ -439,24 +439,25 @@ class Annotator:
                 temp_atom_id = self.metabolite.GetSubstructMatch(
                     MolFromSmarts("C1=CCC=CC1=O")
                 )[2]
-                temp_atom_id_in_substrate = next(
+                temp_atom_id_in_substrate: Optional[int] = next(
                     (k for k, v in self.mapping.items() if v == temp_atom_id), None
                 )  # we need to find the key of the value in the mapping
-                temp_atom_in_substrate = self.substrate.GetAtomWithIdx(
-                    temp_atom_id_in_substrate
-                )
-                temp_neighbor_idx = [
-                    neighbor.GetIdx()
-                    for neighbor in temp_atom_in_substrate.GetNeighbors()
-                ]
-                possible_soms = [
-                    id
-                    for id in temp_neighbor_idx
-                    if self.substrate.GetAtomWithIdx(id).GetSymbol() != "C"
-                ]
-                if len(possible_soms) == 1:
-                    self.soms.append(possible_soms[0])
-                    return True
+                if temp_atom_id_in_substrate:
+                    temp_atom_in_substrate = self.substrate.GetAtomWithIdx(
+                        temp_atom_id_in_substrate
+                    )
+                    temp_neighbor_idx = [
+                        neighbor.GetIdx()
+                        for neighbor in temp_atom_in_substrate.GetNeighbors()
+                    ]
+                    possible_soms = [
+                        id
+                        for id in temp_neighbor_idx
+                        if self.substrate.GetAtomWithIdx(id).GetSymbol() != "C"
+                    ]
+                    if len(possible_soms) == 1:
+                        self.soms.append(possible_soms[0])
+                        return True
         return False
 
     def _correct_ring_opening(self) -> bool:
@@ -568,7 +569,7 @@ class Annotator:
             return True
         return False
 
-    def _find_unmapped_halogen(self) -> int:
+    def _find_unmapped_halogen(self) -> Optional[Atom]:
         """Find the halogen atom in the substrate that is not present in the mapping."""
         halogen_symbols = ["F", "Cl", "Br", "I"]
         for atom in self.substrate.GetAtoms():
@@ -631,7 +632,7 @@ class Annotator:
                         )  # ...add the unmatched atom to the SoMs
                     self.reaction_type = "simple elimination (general)"
 
-    def _find_sulfur_index(self, glutathione_indices: list) -> int:
+    def _find_sulfur_index(self, glutathione_indices: list) -> Optional[int]:
         """
         Find the sulfur atom index in the glutathione structure.
 
@@ -652,7 +653,7 @@ class Annotator:
 
     def _find_sulfur_neighbor_index(
         self, s_index: int, glutathione_indices: list
-    ) -> int:
+    ) -> Optional[int]:
         """
         Find the index of the atom neighboring the sulfur atom.
 
@@ -694,7 +695,9 @@ class Annotator:
                 return fragment
         return None
 
-    def _map_atoms_glutathione(self, source_mol, target_mol) -> dict:
+    def _map_atoms_glutathione(
+        self, source_mol, target_mol
+    ) -> Optional[dict[int, int]]:
         """
         Map atoms between two molecules using MCS.
 
@@ -709,7 +712,7 @@ class Annotator:
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
         mcs = rdFMCS.FindMCS([source_mol, target_mol], self.params)
         if not mcs or not mcs.queryMol:
-            return False
+            return None
 
         highlights_query = source_mol.GetSubstructMatch(mcs.queryMol)
         highlights_target = target_mol.GetSubstructMatch(mcs.queryMol)
@@ -790,7 +793,11 @@ class Annotator:
         if graph_matching.is_isomorphic():
             log(
                 self.logger_path,
-                "Subgraph isomorphism matching found! Metabolite is an isomorphic subgraph of the substrate.",
+                "Subgraph isomorphism matching found!",
+            )
+            log(
+                self.logger_path,
+                "Metabolite is an isomorphic subgraph of the substrate.",
             )
             self.mapping = graph_matching.mapping
             already_matched_metabolite_atom_indices = set(self.mapping.values())
@@ -803,7 +810,11 @@ class Annotator:
             if graph_matching.is_isomorphic():
                 log(
                     self.logger_path,
-                    "Subgraph isomorphism matching found! Substrate is an isomorphic subgraph of the metabolite.",
+                    "Subgraph isomorphism matching found!",
+                )
+                log(
+                    self.logger_path,
+                    "Substrate is an isomorphic subgraph of the metabolite.",
                 )
                 self.mapping = graph_matching.mapping
                 already_matched_metabolite_atom_indices = set(self.mapping.keys())
@@ -1003,7 +1014,7 @@ class Annotator:
                 return False
 
             # Find the halogen atom in the substrate that is not in the metabolite
-            halogen_atom = self._find_unmapped_halogen()
+            halogen_atom: Optional[Atom] = self._find_unmapped_halogen()
             if halogen_atom is None:
                 return False
 
@@ -1224,7 +1235,7 @@ class Annotator:
             return True
         return False
 
-    def log_and_return_soms(self) -> Tuple[List[int], str]:
+    def log_and_return_soms(self) -> tuple[list[int], str]:
         """Return SoMs and annotation rule."""
         if self.reaction_type == "unknown":
             log(self.logger_path, "SOMAN is unable to annotate SoMs.")
@@ -1248,7 +1259,7 @@ def annotate_soms(
     logger_path: str,
     filter_size: int,
     ester_hydrolysis: bool,
-) -> Callable[[], Tuple[List[int], str]]:
+) -> Tuple[List[int], str]:
     """Annotates SoMs for a given substrate-metabolite pair."""
     som_finder = Annotator(
         substrate,

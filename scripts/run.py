@@ -19,7 +19,7 @@ Command-line arguments:
     -t, --type: str, required
         The type of input data. Choose between "inchi" and "smiles".
     -f, --filter_size: int, optional, default=40
-        The maximum number of heavy atoms tolerated in both substrate and metabolite 
+        The maximum number of heavy atoms tolerated in both substrate and metabolite
         prior to running redox matching or MCS matching.
         The runtime can get very high for large molecules.
 
@@ -34,7 +34,8 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from rdkit.Chem import MolFromInchi, MolFromSmiles, MolToInchi, PandasTools
+from rdkit.Chem import PandasTools  # type: ignore
+from rdkit.Chem import MolFromSmiles, MolToInchi
 from tqdm import tqdm
 
 from src.annotator import annotate_soms
@@ -143,7 +144,7 @@ if __name__ == "__main__":
         index=False,
     )
 
-    ###### Merge all soms from the same substrates and output annotated data ######
+    # Merge all soms from the same substrates and output annotated data
     # One substrate can undergo multiple reactions, leading to multiple metabolites.
     # This step merges all the soms from the same substrate and outputs the data
     # in a single SDF file.
