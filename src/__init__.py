@@ -24,3 +24,23 @@ the README.md file in the GitHub repository.
 
 __version__ = "0.1.0"
 __author__ = "Roxane A. Jacob"
+
+from .addition_annotator import AdditionAnnotator
+from .base_annotator import BaseAnnotator
+from .complex_annotator import ComplexAnnotator
+from .elimination_annotator import EliminationAnnotator
+from .glutathione_annotator import GlutathioneAnnotator
+from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
+from .pilot_annotator import PilotAnnotator
+from .redox_annotator import RedoxAnnotator
+
+__all__ = [
+    "PilotAnnotator",
+    "BaseAnnotator",
+    "GlutathioneAnnotator",
+    "OxidativeDehalogenationAnnotator",
+    "AdditionAnnotator",
+    "EliminationAnnotator",
+    "RedoxAnnotator",
+    "ComplexAnnotator",
+]

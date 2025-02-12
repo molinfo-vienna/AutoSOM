@@ -1,0 +1,222 @@
+from rdkit.Chem import MolFromSmarts, rdFMCS
+
+from .base_annotator import BaseAnnotator
+from .utils import get_bond_order, log
+
+
+class EliminationAnnotator(BaseAnnotator):
+    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
+        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+
+    def _correct_acetal_hydrolysis(self) -> bool:
+        """Correct SoMs for acetals."""
+        acetal_pattern = MolFromSmarts("[C;X4](O[*])O[*]")
+        exclusion_pattern = MolFromSmarts("[C;X4](OC(=O))O[*]")
+
+        if not any(
+            som in self.substrate.GetSubstructMatch(acetal_pattern) for som in self.soms
+        ):
+            return False
+        if any(
+            som in self.substrate.GetSubstructMatch(exclusion_pattern)
+            for som in self.soms
+        ):
+            return False
+
+        corrected_soms = [
+            atom.GetIdx()
+            for atom in self.substrate.GetAtoms()
+            if atom.GetIdx()
+            in self.substrate.GetSubstructMatch(MolFromSmarts("[C;X4](O)O"))
+            and atom.GetAtomicNum() == 6
+        ]
+        if corrected_soms:
+            self.soms = corrected_soms
+            self.reaction_type = "simple elimination (acetal)"
+            log(self.logger_path, "Acetal elimination detected. Corrected SoMs.")
+            return True
+        return False
+
+    def _correct_ester_hydrolysis(self) -> bool:
+        """Correct SoMs for ester hydrolysis."""
+        if not self.ester_hydrolysis:
+            return False
+
+        ester_pattern = MolFromSmarts("[*][C](=O)[O][*]")
+        if not any(
+            som in self.substrate.GetSubstructMatch(ester_pattern) for som in self.soms
+        ):
+            return False
+
+        corrected_soms = [
+            atom.GetIdx()
+            for atom in self.substrate.GetAtoms()
+            if atom.GetIdx() in self.substrate.GetSubstructMatch(ester_pattern)
+            and atom.GetAtomicNum() == 6
+            and self._has_single_and_double_bonded_oxygen(atom)
+        ]
+        if corrected_soms:
+            self.soms = corrected_soms
+            self.reaction_type = "simple elimination (ester hydrolysis)"
+            log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
+            return True
+        return False
+
+    def _correct_phosphate_hydrolysis(self) -> bool:
+        """Correct SoMs for phosphate hydrolysis."""
+        phosphate_derivate_pattern = MolFromSmarts("P(=O)")
+
+        if not self.substrate.GetSubstructMatch(phosphate_derivate_pattern):
+            return False
+
+        som_atom = self.substrate.GetAtomWithIdx(self.soms[0])
+        if (
+            som_atom.GetSymbol() == "P"
+        ):  # if the som is a phosphore atom, leave it as it is
+            self.reaction_type = "simple elimination (phosphate-derivative hydrolysis)"
+            log(
+                self.logger_path,
+                "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+            )
+            return True
+        for neighbor in som_atom.GetNeighbors():
+            if neighbor.GetSymbol() == "P":
+                # if one of its neighbors is a phosphore atoms,
+                # we have the case where a phosphore hydrolysis took place,
+                # and the metabolite does **not** contain the phosphate functional group anymore
+                self.soms = [neighbor.GetIdx()]
+                self.reaction_type = (
+                    "simple elimination (phosphate-derivative hydrolysis)"
+                )
+                log(
+                    self.logger_path,
+                    "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+                )
+                return True
+        return False
+
+    def _correct_sulfur_derivatives_hydrolysis(self) -> bool:
+        """Correct SoMs for the hydrolysis of sulfur derivatives \
+        (sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.)."""
+        if len(self.soms) != 1:
+            return False
+
+        sulfur_pattern = MolFromSmarts("[*][S](=O)(=O)[*]")
+        exclusion_pattern = MolFromSmarts("[*]S(=O)(=O)NO")
+
+        if not any(
+            som in self.substrate.GetSubstructMatch(sulfur_pattern) for som in self.soms
+        ):
+            return False
+        if any(
+            som in self.substrate.GetSubstructMatch(exclusion_pattern)
+            for som in self.soms
+        ):
+            return False
+
+        self.soms = [
+            atom.GetIdx()
+            for atom in self.substrate.GetAtoms()
+            if atom.GetSymbol() == "S"
+        ]
+        self.reaction_type = "simple elimination (sulfur-derivative hydrolysis)"
+        log(self.logger_path, "Sulfur-derivative hydrolysis detected. Corrected SoMs.")
+        return True
+
+    def _correct_piperazine_ring_hydroysis(self) -> bool:
+        """Correct SoMs for piperazine ring opening."""
+        piperazine_pattern = MolFromSmarts("N1CCNCC1")
+
+        if not any(
+            som in self.substrate.GetSubstructMatch(piperazine_pattern)
+            for som in self.soms
+        ):
+            return False
+
+        additional_soms = [
+            neighbor.GetIdx()
+            for som in self.soms
+            if som in self.substrate.GetSubstructMatch(piperazine_pattern)
+            for neighbor in self.substrate.GetAtomWithIdx(som).GetNeighbors()
+            if neighbor.GetSymbol() == "C"
+        ]
+        if additional_soms:
+            self.soms.extend(additional_soms)
+            self.reaction_type = "simple elimination (piperazine ring opening)"
+            log(self.logger_path, "Piperazine ring opening detected. Corrected SoMs.")
+            return True
+        return False
+
+    def _general_case_simple_elimination(self, unmatched_atoms, target, mcs):
+        """Identify SoMs in the simple elimination case based on unmatched atoms."""
+        for atom in unmatched_atoms:  # iterate over unmatched atoms
+            for (
+                neighbor
+            ) in atom.GetNeighbors():  # iterate over neighbors of the unmatched atom
+                if neighbor.GetIdx() in target.GetSubstructMatch(
+                    mcs.queryMol
+                ):  # if the neighbor is in the MCS...
+                    if (
+                        atom.GetAtomicNum() != 6
+                    ):  # ... and the unmatched atom is not a carbon atom...
+                        self.soms.append(
+                            neighbor.GetIdx()
+                        )  # ...add the neighbor to the SoMs
+                    else:  # if the unmatched atom is a carbon atom...
+                        self.soms.append(
+                            atom.GetIdx()
+                        )  # ...add the unmatched atom to the SoMs
+                    self.reaction_type = "simple elimination (general)"
+
+    def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
+        """Check if an atom has both single and double bonded oxygen neighbors."""
+        neighbor_bonds = [
+            neighbor.GetSymbol()
+            + str(get_bond_order(self.substrate, atom.GetIdx(), neighbor.GetIdx()))
+            for neighbor in atom.GetNeighbors()
+        ]
+        return "O1" in neighbor_bonds and "O2" in neighbor_bonds
+
+    def handle_simple_elimination(self) -> bool:
+        """
+        Annotate SoMs for simple elimination reactions.
+
+        Returns:
+            bool: True if a simple elimination reaction is found, False otherwise.
+        """
+        log(self.logger_path, "Attempting simple elimination matching.")
+
+        if not self.substrate.HasSubstructMatch(self.metabolite):
+            return False
+
+        log(
+            self.logger_path,
+            "Metabolite is a substructure the substrate.",
+        )
+
+        try:
+            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+            mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.params)
+            unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
+
+            self._general_case_simple_elimination(unmatched_atoms, self.substrate, mcs)
+
+            if self._correct_ester_hydrolysis():
+                return True
+
+            if self._correct_acetal_hydrolysis():
+                return True
+
+            if self._correct_phosphate_hydrolysis():
+                return True
+
+            if self._correct_sulfur_derivatives_hydrolysis():
+                return True
+
+            if self._correct_piperazine_ring_hydroysis():
+                return True
+
+            return True
+        except (ValueError, KeyError, AttributeError) as e:
+            log(self.logger_path, f"Simple elimination matching failed. Error: {e}")
+            return False

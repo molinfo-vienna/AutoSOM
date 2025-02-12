@@ -38,7 +38,7 @@ from rdkit.Chem import PandasTools  # type: ignore
 from rdkit.Chem import MolFromSmiles, MolToInchi
 from tqdm import tqdm
 
-from src.annotator import annotate_soms
+from src import PilotAnnotator
 from src.utils import (
     check_and_collapse_substrate_id,
     concat_lists,
@@ -110,16 +110,21 @@ if __name__ == "__main__":
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
     data = curate_data(data, logger_path)
-    data = standardize_data(data, logger_path)
+    # data = standardize_data(data, logger_path)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
+    annotator = PilotAnnotator(
+        logger_path,
+        filter_size=args.filter_size,
+        ester_hydrolysis=args.ester_hydrolysis,
+    )
+
     data[["soms", "annotation_rule"]] = data.progress_apply(
-        lambda x: annotate_soms(
-            (x.substrate_mol, x.substrate_id),
-            (x.metabolite_mol, x.metabolite_id),
-            logger_path,
-            filter_size=args.filter_size,
-            ester_hydrolysis=args.ester_hydrolysis,
+        lambda x: annotator.annotate_soms(
+            x.substrate_mol,
+            x.substrate_id,
+            x.metabolite_mol,
+            x.metabolite_id,
         ),
         axis=1,
         result_type="expand",
