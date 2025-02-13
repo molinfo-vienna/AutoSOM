@@ -9,24 +9,10 @@ from typing import List, Optional
 
 import networkx as nx
 import pandas as pd
+from chembl_structure_pipeline import standardizer
 from rdkit import Chem
-from rdkit.Chem import GetPeriodicTable, Mol, MolToInchi
+from rdkit.Chem import GetPeriodicTable, Mol, MolToInchiKey
 from rdkit.Chem.MolStandardize import rdMolStandardize
-
-ALLOWED_ATOMS = {
-    1,  # H
-    5,  # B
-    6,  # C
-    7,  # N
-    8,  # O
-    9,  # F
-    14,  # Si
-    15,  # P
-    16,  # S
-    17,  # Cl
-    35,  # Br
-    53,  # I
-}
 
 
 def _find_symmetry_groups(mol: Mol):
@@ -48,24 +34,6 @@ def _find_symmetry_groups(mol: Mol):
     return groups
 
 
-def _set_allowed_elements_flag(mol: Mol) -> int:
-    """Check if a molecule contains only allowed chemical elements (see ALLOWED_ATOMS).
-
-    Args:
-        mol (RDKit Mol): Molecule to check.
-
-    Returns:
-        int: 1 if the molecule contains only allowed chemical elements, 0 otherwise.
-    """
-    atom_counts = set()
-    for atom in mol.GetAtoms():
-        atom_counts.add(atom.GetAtomicNum())
-        unallowed_atoms_count = atom_counts - ALLOWED_ATOMS
-    if len(unallowed_atoms_count) != 0:
-        return False
-    return True
-
-
 def _standardize_row(row: pd.Series) -> pd.Series:
     """Standardize a dataframe row of the containing the substrate and metabolite.
 
@@ -76,10 +44,18 @@ def _standardize_row(row: pd.Series) -> pd.Series:
         pd.Series: Standardized row of the dataframe containing the substrate and metabolite.
     """
     try:
+        row["substrate_mol"] = standardizer.get_parent_mol(row["substrate_mol"])[0]
+        row["metabolite_mol"] = standardizer.get_parent_mol(row["metabolite_mol"])[0]
+
         row["substrate_mol"] = rdMolStandardize.CanonicalTautomer(row["substrate_mol"])
         row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
             row["metabolite_mol"]
         )
+
+        # Sanitize the molecules (this operation is in place)
+        Chem.SanitizeMol(row["substrate_mol"])
+        Chem.SanitizeMol(row["metabolite_mol"])
+
     except (ValueError, KeyError, AttributeError) as e:
         print(f"Error: {e} in row {row}")
         row["substrate_mol"] = None
@@ -132,9 +108,9 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     """Curate the data according to the following rules.
 
     Rules:
-    (1) Compute each compound's InChI.
-    Remove any entries for which an InChI cannot be computed,
-    and entries with identical database-internal molecular identifiers but differing InChI.
+    (1) Remove any entries for which an InChI cannot be computed,
+    and entries with identical database-internal molecular identifiers
+    but differing InChI.
     (2) Discard compounds containing any chemical element other
     than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
     (3) Remove all hydrogen atoms.
@@ -147,38 +123,20 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     """
     # Filter out reactions with missing InChI
     data_size = len(data)
-    data["substrate_inchi"] = data["substrate_mol"].map(MolToInchi)
-    data["metabolite_inchi"] = data["metabolite_mol"].map(MolToInchi)
-    data = data.dropna(subset=["substrate_inchi", "metabolite_inchi"])
+    data["substrate_inchikey"] = data["substrate_mol"].map(MolToInchiKey)
+    data["substrate_inchikey"] = data["metabolite_mol"].map(MolToInchiKey)
+    data = data.dropna(subset=["substrate_inchikey", "substrate_inchikey"])
     log(
         logger_path,
         f"Removed {data_size - len(data)} reactions with missing InChI.",
     )
     data_size = len(data)
 
-    # Filter out reactions with unusual chemical elements
-    data["substrate_allowed_elements_flag"] = data["substrate_mol"].apply(
-        _set_allowed_elements_flag
-    )
-    data["metabolite_allowed_elements_flag"] = data["metabolite_mol"].apply(
-        _set_allowed_elements_flag
-    )
-    data = data[
-        data.substrate_allowed_elements_flag & data.metabolite_allowed_elements_flag
-    ]
-    log(
-        logger_path,
-        f"Chemical element filter removed {data_size - len(data)} reactions.",
-    )
-    data_size = len(data)
-
     # Clean up the DataFrame
     data = data.drop(
         columns=[
-            "substrate_inchi",
-            "metabolite_inchi",
-            "substrate_allowed_elements_flag",
-            "metabolite_allowed_elements_flag",
+            "substrate_inchikey",
+            "substrate_inchikey",
         ]
     )
 

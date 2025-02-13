@@ -35,18 +35,12 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from rdkit.Chem import PandasTools  # type: ignore
-from rdkit.Chem import MolFromSmiles, MolToInchi
+from rdkit.Chem import MolFromSmiles, MolToInchiKey
 from tqdm import tqdm
 
 from src.annotator import annotate_soms
-from src.utils import (
-    check_and_collapse_substrate_id,
-    concat_lists,
-    curate_data,
-    log,
-    standardize_data,
-    symmetrize_soms,
-)
+from src.utils import (check_and_collapse_substrate_id, concat_lists,
+                       curate_data, log, standardize_data, symmetrize_soms)
 
 np.random.seed(seed=42)
 tqdm.pandas()
@@ -155,11 +149,11 @@ if __name__ == "__main__":
     # This step merges all the soms from the same substrate and outputs the data
     # in a single SDF file.
 
-    data["substrate_inchi"] = data.substrate_mol.map(MolToInchi)
-    data_grouped = data.groupby("substrate_inchi", as_index=False).agg(
+    data["substrate_inchikey"] = data.substrate_mol.map(MolToInchiKey)
+    data_grouped = data.groupby("substrate_inchikey", as_index=False).agg(
         {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
-    data_grouped_first = data.groupby("substrate_inchi", as_index=False).first()[
+    data_grouped_first = data.groupby("substrate_inchikey", as_index=False).first()[
         [
             column
             for column in data.columns
