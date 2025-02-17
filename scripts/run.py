@@ -35,12 +35,12 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from rdkit.Chem import PandasTools  # type: ignore
-from rdkit.Chem import MolFromSmiles, MolToInchiKey
+from rdkit.Chem import MolFromSmiles
 from tqdm import tqdm
 
 from src.annotator import annotate_soms
-from src.utils import (check_and_collapse_substrate_id, concat_lists,
-                       curate_data, log, standardize_data, symmetrize_soms)
+from src.utils import (check_and_collapse_substrate_id,  # standardize_data,
+                       concat_lists, curate_data, log, symmetrize_soms)
 
 np.random.seed(seed=42)
 tqdm.pandas()
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
     data = curate_data(data, logger_path)
-    data = standardize_data(data, logger_path)
+    # data = standardize_data(data, logger_path)
 
     # Predict SoMs and re-annotate topologically symmetric SoMs
     data[["soms", "annotation_rule"]] = data.progress_apply(
@@ -149,10 +149,10 @@ if __name__ == "__main__":
     # This step merges all the soms from the same substrate and outputs the data
     # in a single SDF file.
 
-    data["substrate_inchikey"] = data.substrate_mol.map(MolToInchiKey)
     data_grouped = data.groupby("substrate_inchikey", as_index=False).agg(
         {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
+    # Get only the first entry if multiple entries exist for the same substrate
     data_grouped_first = data.groupby("substrate_inchikey", as_index=False).first()[
         [
             column
@@ -162,12 +162,14 @@ if __name__ == "__main__":
             and "soms" not in column
         ]
     ]
+    data_grouped_first["substrate_id"] = data_grouped_first["substrate_id"].astype(int)
 
     data_merged = data_grouped.merge(data_grouped_first, how="inner")
 
     PandasTools.WriteSDF(
         df=data_merged,
         out=os.path.join(args.outputPath, "merged.sdf"),
+        idName="substrate_id",
         molColName="substrate_mol",
         properties=data_merged.columns.tolist(),
     )

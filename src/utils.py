@@ -111,9 +111,7 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     (1) Remove any entries for which an InChI cannot be computed,
     and entries with identical database-internal molecular identifiers
     but differing InChI.
-    (2) Discard compounds containing any chemical element other
-    than H, B, C, N, O, F, Si, P, S, Cl, Br, I.
-    (3) Remove all hydrogen atoms.
+    (2) Remove all hydrogen atoms.
 
     Args:
         data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
@@ -124,20 +122,11 @@ def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
     # Filter out reactions with missing InChI
     data_size = len(data)
     data["substrate_inchikey"] = data["substrate_mol"].map(MolToInchiKey)
-    data["substrate_inchikey"] = data["metabolite_mol"].map(MolToInchiKey)
-    data = data.dropna(subset=["substrate_inchikey", "substrate_inchikey"])
+    data["metabolite_inchikey"] = data["metabolite_mol"].map(MolToInchiKey)
+    data = data.dropna(subset=["substrate_inchikey", "metabolite_inchikey"])
     log(
         logger_path,
         f"Removed {data_size - len(data)} reactions with missing InChI.",
-    )
-    data_size = len(data)
-
-    # Clean up the DataFrame
-    data = data.drop(
-        columns=[
-            "substrate_inchikey",
-            "substrate_inchikey",
-        ]
     )
 
     # Reset the index
