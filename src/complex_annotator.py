@@ -1,4 +1,4 @@
-"""This module provides functionalities to annotate SOMs for complex reactions."""
+"""Annotates SOMs for complex reactions."""
 
 from networkx.algorithms import isomorphism
 from rdkit.Chem import MolFromSmarts, rdFMCS
@@ -10,11 +10,9 @@ from .utils import get_neighbor_atomic_nums, log, mol_to_graph
 class ComplexAnnotator(BaseAnnotator):
     """Annotate SoMs for complex reactions."""
 
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
-
     def _correct_alkyl_chain_deletion(self) -> bool:
-        """Correct SoMs for the deletion of one or more carbon atoms from an alkyl chain."""
+        """Correct SoMs for the deletion of one or more carbon atoms from an
+        alkyl chain."""
         # Compare carbon counts
         substrate_carbon_count = sum(
             1 for atom in self.substrate.GetAtoms() if atom.GetSymbol() == "C"
@@ -30,7 +28,7 @@ class ComplexAnnotator(BaseAnnotator):
 
         # Find the MCS
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
         mcs_mol = MolFromSmarts(mcs.smartsString)
 
         if not mcs_mol:
@@ -172,12 +170,8 @@ class ComplexAnnotator(BaseAnnotator):
     def handle_complex_reaction_subgraph_ismorphism_matching(
         self,
     ) -> bool:
-        """
-        Annotate SoMs for complex reactions using subgraph isomorphism matching.
-
-        Returns:
-            bool: True if a complex reaction is found, False otherwise.
-        """
+        """Annotate SoMs for complex reactions using subgraph isomorphism
+        matching."""
         mol_graph_substrate = mol_to_graph(self.substrate)
         mol_graph_metabolite = mol_to_graph(self.metabolite)
 
@@ -275,15 +269,10 @@ class ComplexAnnotator(BaseAnnotator):
     def handle_complex_reaction_maximum_common_subgraph_matching(
         self,
     ) -> bool:
-        """
-        Annotate SoMs for complex reactions using largest common \
-        subgraph (maximum common substructure) matching.
-
-        Returns:
-            bool: True if a complex reaction is found, False otherwise.
-        """
+        """Annotate SoMs for complex reactions using largest common subgraph
+        (maximum common substructure) matching."""
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
 
         if mcs.numAtoms == 0:
             return False

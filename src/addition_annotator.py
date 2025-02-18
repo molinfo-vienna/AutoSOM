@@ -1,4 +1,4 @@
-"""This module provides functionalities to annotate SOMs for addition reactions.
+"""Annotates SOMs for addition reactions.
 
 In the context of AutoSOM, these are reactions where
 the number of heavy atoms in the substrate is less than in the metabolite,
@@ -16,9 +16,6 @@ from .utils import log
 
 class AdditionAnnotator(BaseAnnotator):
     """Annotate SoMs for addition reactions."""
-
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_carnitine_addition(self) -> bool:
         """Correct SoMs for the addition of carnitine to a carboxylic acid."""
@@ -43,7 +40,8 @@ class AdditionAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _find_unmatched_atoms(self, target: Mol, mcs) -> list:
+    @classmethod
+    def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
         """Find unmatched atoms between the target and the query molecule."""
         return [
             atom
@@ -52,7 +50,8 @@ class AdditionAnnotator(BaseAnnotator):
         ]
 
     def _general_case_simple_addition(self, unmatched_atoms, query, mcs):
-        """Identify SoMs in the simple addition case based on unmatched atoms."""
+        """Identify SoMs in the simple addition case based on unmatched
+        atoms."""
         for atom in unmatched_atoms:  # iterate over unmatched atoms
             for (
                 neighbor
@@ -73,12 +72,7 @@ class AdditionAnnotator(BaseAnnotator):
                     self.reaction_type = "simple addition"
 
     def handle_simple_addition(self) -> bool:
-        """
-        Annotate SoMs for simple addition reactions.
-
-        Returns:
-            bool: True if a simple addition reaction is found, False otherwise.
-        """
+        """Annotate SoMs for simple addition reactions."""
         log(self.logger_path, "Attempting simple addition matching.")
 
         if not self.metabolite.HasSubstructMatch(self.substrate):
@@ -91,7 +85,7 @@ class AdditionAnnotator(BaseAnnotator):
 
         try:
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
             if not self._map_atoms(self.substrate, self.metabolite, mcs):
                 return False
             unmatched_atoms = self._find_unmatched_atoms(self.metabolite, mcs)

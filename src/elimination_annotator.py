@@ -1,4 +1,4 @@
-"""This module provides functionalities to annotate SOMs for elimination reactions.
+"""Annotates SOMs for elimination reactions.
 
 In the context of AutoSOM, these are reactions where
 the number of heavy atoms in the substrate is greater than in the metabolite,
@@ -17,9 +17,6 @@ from .utils import get_bond_order, log
 
 class EliminationAnnotator(BaseAnnotator):
     """Annotate SoMs for elimination reactions."""
-
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_acetal_hydrolysis(self) -> bool:
         """Correct SoMs for acetals."""
@@ -109,8 +106,8 @@ class EliminationAnnotator(BaseAnnotator):
         return False
 
     def _correct_sulfur_derivatives_hydrolysis(self) -> bool:
-        """Correct SoMs for the hydrolysis of sulfur derivatives \
-        (sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.)."""
+        """Correct SoMs for the hydrolysis of sulfur derivatives.
+        E.g.: sulfamate, sulfonamide, sulfonate, sulfuric diamide etc."""
         if len(self.soms) != 1:
             return False
 
@@ -160,7 +157,8 @@ class EliminationAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _find_unmatched_atoms(self, target: Mol, mcs) -> list:
+    @classmethod
+    def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
         """Find unmatched atoms between the target and the query molecule."""
         return [
             atom
@@ -169,7 +167,8 @@ class EliminationAnnotator(BaseAnnotator):
         ]
 
     def _general_case_simple_elimination(self, unmatched_atoms, target, mcs):
-        """Identify SoMs in the simple elimination case based on unmatched atoms."""
+        """Identify SoMs in the simple elimination case based on unmatched
+        atoms."""
         for atom in unmatched_atoms:  # iterate over unmatched atoms
             for (
                 neighbor
@@ -190,7 +189,8 @@ class EliminationAnnotator(BaseAnnotator):
                     self.reaction_type = "simple elimination (general)"
 
     def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
-        """Check if an atom has both single and double bonded oxygen neighbors."""
+        """Check if an atom has both single and double bonded oxygen
+        neighbors."""
         neighbor_bonds = [
             neighbor.GetSymbol()
             + str(get_bond_order(self.substrate, atom.GetIdx(), neighbor.GetIdx()))
@@ -199,8 +199,7 @@ class EliminationAnnotator(BaseAnnotator):
         return "O1" in neighbor_bonds and "O2" in neighbor_bonds
 
     def handle_simple_elimination(self) -> bool:
-        """
-        Annotate SoMs for simple elimination reactions.
+        """Annotate SoMs for simple elimination reactions.
 
         Returns:
             bool: True if a simple elimination reaction is found, False otherwise.
@@ -217,7 +216,7 @@ class EliminationAnnotator(BaseAnnotator):
 
         try:
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.params)
+            mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.mcs_params)
             unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
 
             self._general_case_simple_elimination(unmatched_atoms, self.substrate, mcs)

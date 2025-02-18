@@ -1,7 +1,5 @@
 # pylint: disable=I1101
-
-"""This module provides base functionalities for annotating sites of metabolism (SOMs) \
-given a substrate and a metabolite molecule."""
+"""Provides base functionalities for annotating sites of metabolism (SOMs)."""
 
 from typing import List, Tuple
 
@@ -13,8 +11,7 @@ from .addition_annotator import AdditionAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
 from .glutathione_annotator import GlutathioneAnnotator
-from .oxidative_dehalogenation_annotator import \
-    OxidativeDehalogenationAnnotator
+from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 from .utils import log
 
@@ -33,6 +30,11 @@ class BaseAnnotator:
         soms (List[int]): List of identified SoMs.
     """
 
+    mapping: dict[int, int]
+    params: rdFMCS.MCSParameters
+    reaction_type: str
+    soms: List[int]
+
     def __init__(
         self,
         params: Tuple[str, int, bool],
@@ -48,22 +50,22 @@ class BaseAnnotator:
         self.metabolite = metabolite_data[0]
         self.metabolite_id = metabolite_data[1]
 
-        self.mapping: dict[int, int] = {}
-        self.params = self._initialize_mcs_params()
-        self.reaction_type: str = "unknown"
-        self.soms: List[int] = []
+        self.mapping = {}
+        self.mcs_params = self._initialize_mcs_params()
+        self.reaction_type = "unknown"
+        self.soms = []
 
     def _initialize_mcs_params(self):
-        params = rdFMCS.MCSParameters()
-        params.timeout = 10
-        params.AtomTyper = rdFMCS.AtomCompare.CompareElements
-        params.BondTyper = rdFMCS.BondCompare.CompareOrder
-        params.BondCompareParameters.CompleteRingsOnly = False
-        params.BondCompareParameters.MatchFusedRings = False
-        params.BondCompareParameters.MatchFusedRingsStrict = False
-        params.BondCompareParameters.MatchStereo = False
-        params.BondCompareParameters.RingMatchesRingOnly = False
-        return params
+        mcs_params = rdFMCS.MCSParameters()
+        mcs_params.timeout = 10
+        mcs_params.AtomTyper = rdFMCS.AtomCompare.CompareElements
+        mcs_params.BondTyper = rdFMCS.BondCompare.CompareOrder
+        mcs_params.BondCompareParameters.CompleteRingsOnly = False
+        mcs_params.BondCompareParameters.MatchFusedRings = False
+        mcs_params.BondCompareParameters.MatchFusedRingsStrict = False
+        mcs_params.BondCompareParameters.MatchStereo = False
+        mcs_params.BondCompareParameters.RingMatchesRingOnly = False
+        return mcs_params
 
     def _map_atoms(self, query, target, mcs):
         """Create mapping between query and target based on MCS."""
@@ -76,21 +78,21 @@ class BaseAnnotator:
 
     def _set_mcs_bond_typer_param(self, bond_typer_param):
         """Set the MCS bond compare parameter."""
-        self.params.BondTyper = bond_typer_param
+        self.mcs_params.BondTyper = bond_typer_param
 
     def _set_mcs_bond_compare_params_to_redox(self):
         """Set the MCS bond compare parameters for redox reactions."""
-        self.params.BondCompareParameters.CompleteRingsOnly = True
-        self.params.BondCompareParameters.MatchFusedRings = True
-        self.params.BondCompareParameters.MatchFusedRingsStrict = True
-        self.params.BondCompareParameters.RingMatchesRingOnly = True
+        self.mcs_params.BondCompareParameters.CompleteRingsOnly = True
+        self.mcs_params.BondCompareParameters.MatchFusedRings = True
+        self.mcs_params.BondCompareParameters.MatchFusedRingsStrict = True
+        self.mcs_params.BondCompareParameters.RingMatchesRingOnly = True
 
     def _reset_mcs_bond_compare_params(self):
         """Reset the MCS bond compare parameters to their default value."""
-        self.params.BondCompareParameters.CompleteRingsOnly = False
-        self.params.BondCompareParameters.MatchFusedRings = False
-        self.params.BondCompareParameters.MatchFusedRingsStrict = False
-        self.params.BondCompareParameters.RingMatchesRingOnly = False
+        self.mcs_params.BondCompareParameters.CompleteRingsOnly = False
+        self.mcs_params.BondCompareParameters.MatchFusedRings = False
+        self.mcs_params.BondCompareParameters.MatchFusedRingsStrict = False
+        self.mcs_params.BondCompareParameters.RingMatchesRingOnly = False
 
     def check_atom_types(self) -> bool:
         """Check if the molecules contain any invalid atoms."""
@@ -126,7 +128,8 @@ class BaseAnnotator:
         return True
 
     def check_inchi_validity(self) -> bool:
-        """Check if the substrate and metabolite are valid molecules (inchikey can be computed)."""
+        """Check if the substrate and metabolite are valid molecules (inchikey
+        can be computed)."""
         substrate_inchikey = MolToInchiKey(self.substrate)
         metabolite_inchikey = MolToInchiKey(self.metabolite)
         if substrate_inchikey is None:
@@ -141,8 +144,8 @@ class BaseAnnotator:
         return True
 
     def compute_weight_ratio(self) -> int:
-        """Compute whether the substrate is lighter, \
-        heavier or equally heavy than the metabolite."""
+        """Compute whether the substrate is lighter, heavier or equally heavy
+        than the metabolite."""
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate lighter than metabolite.")
             return 1
@@ -152,14 +155,16 @@ class BaseAnnotator:
         return 0
 
     def initialize_atom_notes(self) -> None:
-        """Initialize the atom note properties for the substrate and the metabolite."""
+        """Initialize the atom note properties for the substrate and the
+        metabolite."""
         for atom in self.substrate.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
 
     def is_too_large_to_process(self) -> bool:
-        """Check if the substrate or metabolite is too large for further processing."""
+        """Check if the substrate or metabolite is too large for further
+        processing."""
         if (
             self.substrate.GetNumHeavyAtoms() > self.filter_size
             or self.metabolite.GetNumHeavyAtoms() > self.filter_size

@@ -1,4 +1,4 @@
-"""This module provides functionalities to annotate SOMs for oxidative dehalogenation reactions.
+"""Annotates SOMs for oxidative dehalogenation reactions.
 
 In the context of AutoSOM, these are reactions where
 the number of carbon atoms in the substrate is the same as in the metabolite,
@@ -13,19 +13,22 @@ from typing import Optional
 from rdkit.Chem import Atom, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
-from .utils import (count_elements, get_bond_order, is_carbon_count_unchanged,
-                    is_halogen_count_decreased, is_oxygen_count_increased, log)
+from .utils import (
+    count_elements,
+    get_bond_order,
+    is_carbon_count_unchanged,
+    is_halogen_count_decreased,
+    is_oxygen_count_increased,
+    log,
+)
 
 
 class OxidativeDehalogenationAnnotator(BaseAnnotator):
     """Annotate SoMs for oxidative dehalogenation reactions."""
 
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
-
     def _correct_epoxide(self) -> bool:
-        """Correct the SoMs for oxidative dehalogenation if \
-        the reaction produces an epoxide instead of the typical alcohol."""
+        """Correct the SoMs for oxidative dehalogenation if the reaction
+        produces an epoxide instead of the typical alcohol."""
         som_atom_in_metabolite = self.metabolite.GetAtomWithIdx(
             self.mapping[self.soms[0]]
         )
@@ -56,8 +59,9 @@ class OxidativeDehalogenationAnnotator(BaseAnnotator):
         return False
 
     def _correct_quinone_like_oxidation(self) -> bool:
-        """Correct the SoMs foroxidative dehalogenation if \
-        the reaction produces a quinone-like metabolite instead of the typical alcohol."""
+        """Correct the SoMs for oxidative dehalogenation if the reaction
+        produces a quinone-like metabolite instead of the typical alcohol."""
+
         som_atom_in_metabolite = self.metabolite.GetAtomWithIdx(
             self.mapping[self.soms[0]]
         )
@@ -101,7 +105,9 @@ class OxidativeDehalogenationAnnotator(BaseAnnotator):
         return False
 
     def _find_unmapped_halogen(self) -> Optional[Atom]:
-        """Find the halogen atom in the substrate that is not present in the mapping."""
+        """Find the halogen atom in the substrate that is not present in the
+        mapping."""
+
         halogen_symbols = ["F", "Cl", "Br", "I"]
         for atom in self.substrate.GetAtoms():
             # self.mapping maps the atom indices in the metabolite to the
@@ -130,16 +136,11 @@ class OxidativeDehalogenationAnnotator(BaseAnnotator):
         return False
 
     def handle_oxidative_dehalogenation(self) -> bool:
-        """
-        Annotate SoMs for oxidative dehalogenation.
-
-        Returns:
-            bool: True if annotation is successful, False otherwise.
-        """
+        """Annotate SoMs for oxidative dehalogenation."""
         try:
 
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
 
             if not self._map_atoms(self.substrate, self.metabolite, mcs):
                 return False

@@ -1,5 +1,5 @@
-"""This script predicts Sites of Metabolism (SOMs) for unseen data using pairs \
-of molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
+"""Predicts Sites of Metabolism (SOMs) for unseen data. Uses pairs of molecular
+structures (substrate/metabolite) provided in SMILES format.
 
 The script performs the following steps:
 1. Parses command-line arguments to get input and output paths, input data type, and filter size.
@@ -40,8 +40,12 @@ from rdkit.Chem import MolFromSmiles, MolToInchiKey
 from tqdm import tqdm
 
 from src import annotate_soms
-from src.utils import (check_and_collapse_substrate_id, concat_lists, log,
-                       symmetrize_soms)
+from src.utils import (
+    check_and_collapse_substrate_id,
+    concat_lists,
+    log,
+    symmetrize_soms,
+)
 
 np.random.seed(seed=42)
 tqdm.pandas()

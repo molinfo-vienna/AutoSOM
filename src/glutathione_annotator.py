@@ -1,8 +1,8 @@
-"""This module provides functionalities to annotate SOMs for glutathione conjugation reactions.
+"""Annotate SOMs for glutathione conjugation reactions.
 
-The glutathione moiety is a tripeptide composed of glutamic acid, cysteine, and glycine.
-AutoSOM finds these reactions by identifying the glutathione moiety in the metabolite,
-via SMARTS pattern matching.
+The glutathione moiety is a tripeptide composed of glutamic acid,
+cysteine, and glycine. AutoSOM finds these reactions by identifying the
+glutathione moiety in the metabolite, via SMARTS pattern matching.
 """
 
 from typing import Optional
@@ -16,17 +16,15 @@ from .utils import log
 class GlutathioneAnnotator(BaseAnnotator):
     """Annotate SoMs for glutathione conjugation reactions."""
 
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
-
     def _find_sulfur_index(self, glutathione_indices: list) -> Optional[int]:
-        """
-        Find the sulfur atom index in the glutathione structure.
+        """Find the sulfur atom index in the glutathione structure.
 
         Args:
+
             glutathione_indices (list): Indices of atoms in the glutathione moiety.
 
         Returns:
+
             int: Index of the sulfur atom, or None if not found.
         """
         return next(
@@ -41,14 +39,15 @@ class GlutathioneAnnotator(BaseAnnotator):
     def _find_sulfur_neighbor_index(
         self, s_index: int, glutathione_indices: list
     ) -> Optional[int]:
-        """
-        Find the index of the atom neighboring the sulfur atom.
+        """Find the index of the atom neighboring the sulfur atom.
 
         Args:
+
             s_index (int): Index of the sulfur atom.
             glutathione_indices (list): Indices of atoms in the glutathione moiety.
 
         Returns:
+
             int: Index of the atom neighboring the sulfur atom, or None if not found.
         """
         s_neighbors = [
@@ -60,14 +59,16 @@ class GlutathioneAnnotator(BaseAnnotator):
         )
 
     def _get_non_glutathione_fragment(self, s_index: int, som_index: int):
-        """
-        Split the metabolite into fragments and identify the one without the glutathione moiety.
+        """Split the metabolite into fragments and identify the one without the
+        glutathione moiety.
 
         Args:
+
             s_index (int): Index of the sulfur atom.
             som_index (int): Index of the SoM atom.
 
         Returns:
+
             Mol: The fragment that does not contain the glutathione moiety, or None if not found.
         """
         bond_id = self.metabolite.GetBondBetweenAtoms(s_index, som_index).GetIdx()
@@ -85,19 +86,20 @@ class GlutathioneAnnotator(BaseAnnotator):
     def _map_atoms_glutathione(
         self, source_mol, target_mol
     ) -> Optional[dict[int, int]]:
-        """
-        Map atoms between two molecules using MCS.
+        """Map atoms between two molecules using MCS.
 
         Args:
+
             source_mol (Mol): The source molecule.
             target_mol (Mol): The target molecule.
 
         Returns:
+
             dict: A mapping between the atoms in the source
                   molecule and the atoms in the target molecule.
         """
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-        mcs = rdFMCS.FindMCS([source_mol, target_mol], self.params)
+        mcs = rdFMCS.FindMCS([source_mol, target_mol], self.mcs_params)
         if not mcs or not mcs.queryMol:
             return None
 
@@ -110,10 +112,10 @@ class GlutathioneAnnotator(BaseAnnotator):
         return dict(zip(highlights_query, highlights_target))
 
     def handle_glutathione_conjugation(self) -> bool:
-        """
-        Annotate SoMs for glutathione conjugation.
+        """Annotate SoMs for glutathione conjugation.
 
         Returns:
+
             bool: True if annotation is successful, False otherwise.
         """
         try:

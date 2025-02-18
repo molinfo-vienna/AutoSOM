@@ -1,10 +1,10 @@
-"""This module provides functionalities to annotate SOMs for redox reactions.
+"""Annotates SOMs for redox reactions.
 
-In the context of AutoSOM, these are reactions where
-the number of hevay atoms in the substrate and metabolite are the same,
-the number of halogens in the substrate and metabolite are the same,
-and the MCS covers all but one heavy atom in the substrate.
-An example of a redox reaction is the conversion of a ketone to an alcohol.
+In the context of AutoSOM, these are reactions where the number of hevay
+atoms in the substrate and metabolite are the same, the number of
+halogens in the substrate and metabolite are the same, and the MCS
+covers all but one heavy atom in the substrate. An example of a redox
+reaction is the conversion of a ketone to an alcohol.
 """
 
 from rdkit.Chem import Mol, rdFMCS
@@ -16,16 +16,8 @@ from .utils import log
 class RedoxAnnotator(BaseAnnotator):
     """Annotate SoMs for redox reactions."""
 
-    def __init__(self, params, substrate_data, metabolite_data):
-        super().__init__(params, substrate_data, metabolite_data)
-
     def _correct_cn_redox(self) -> bool:
-        """
-        Apply corrections if the redox reaction involves a C-N bond.
-
-        Returns:
-            bool: True if corrections were applied, False otherwise.
-        """
+        """Apply corrections if the redox reaction involves a C-N bond."""
         covered_atom_types = [
             self.substrate.GetAtomWithIdx(atom_id).GetAtomicNum()
             for atom_id in self.soms
@@ -51,7 +43,8 @@ class RedoxAnnotator(BaseAnnotator):
         ]
 
     def _has_equal_number_halogens(self) -> bool:
-        """Check if substrate and metabolite have the same number of halogens."""
+        """Check if substrate and metabolite have the same number of
+        halogens."""
         halogen_atomic_nums = {9, 17, 35, 53}
 
         num_halogens_substrate = sum(
@@ -68,16 +61,12 @@ class RedoxAnnotator(BaseAnnotator):
         return False
 
     def handle_redox_reaction(self) -> bool:
-        """Annotate SoMs for redox reactions.
-
-        Returns:
-            bool: True if a redox reaction is found, False otherwise.
-        """
+        """Annotate SoMs for redox reactions."""
         try:
             log(self.logger_path, "Attempting redox reaction matching.")
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
             self._set_mcs_bond_compare_params_to_redox()
-            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.params)
+            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
             self._reset_mcs_bond_compare_params()
 
             # Check if the MCS covers all but one heavy atom in the substrate

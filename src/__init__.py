@@ -30,8 +30,7 @@ from .base_annotator import BaseAnnotator, annotate_soms
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
 from .glutathione_annotator import GlutathioneAnnotator
-from .oxidative_dehalogenation_annotator import \
-    OxidativeDehalogenationAnnotator
+from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 
 __all__ = [
