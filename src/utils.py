@@ -8,11 +8,8 @@ from datetime import datetime
 from typing import List, Optional
 
 import networkx as nx
-import pandas as pd
-from chembl_structure_pipeline import standardizer
 from rdkit import Chem
-from rdkit.Chem import GetPeriodicTable, Mol, MolToInchiKey
-from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem import GetPeriodicTable, Mol
 
 
 def _find_symmetry_groups(mol: Mol):
@@ -32,35 +29,6 @@ def _find_symmetry_groups(mol: Mol):
     for s in equivs.values():
         groups.add(tuple(s))
     return groups
-
-
-def _standardize_row(row: pd.Series) -> pd.Series:
-    """Standardize a dataframe row of the containing the substrate and metabolite.
-
-    Args:
-        row (pd.Series): Row of the dataframe containing the substrate and metabolite.
-
-    Returns:
-        pd.Series: Standardized row of the dataframe containing the substrate and metabolite.
-    """
-    try:
-        row["substrate_mol"] = standardizer.get_parent_mol(row["substrate_mol"])[0]
-        row["metabolite_mol"] = standardizer.get_parent_mol(row["metabolite_mol"])[0]
-
-        row["substrate_mol"] = rdMolStandardize.CanonicalTautomer(row["substrate_mol"])
-        row["metabolite_mol"] = rdMolStandardize.CanonicalTautomer(
-            row["metabolite_mol"]
-        )
-
-        # Sanitize the molecules (this operation is in place)
-        Chem.SanitizeMol(row["substrate_mol"])
-        Chem.SanitizeMol(row["metabolite_mol"])
-
-    except (ValueError, KeyError, AttributeError) as e:
-        print(f"Error: {e} in row {row}")
-        row["substrate_mol"] = None
-        row["metabolite_mol"] = None
-    return row
 
 
 def check_and_collapse_substrate_id(substrate_id) -> Optional[int]:
@@ -102,45 +70,6 @@ def count_elements(mol: Mol) -> dict[str, int]:
         element = periodic_table.GetElementSymbol(atom.GetAtomicNum())
         element_counts[element] += 1
     return element_counts
-
-
-def curate_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
-    """Curate the data according to the following rules.
-
-    Rules:
-    (1) Remove any entries for which an InChI cannot be computed,
-    and entries with identical database-internal molecular identifiers
-    but differing InChI.
-    (2) Remove all hydrogen atoms.
-
-    Args:
-        data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
-
-    Returns:
-        pd.DataFrame: Curated DataFrame containing the substrate and metabolite molecules.
-    """
-    # Filter out reactions with missing InChI
-    data_size = len(data)
-    data["substrate_inchikey"] = data["substrate_mol"].map(MolToInchiKey)
-    data["metabolite_inchikey"] = data["metabolite_mol"].map(MolToInchiKey)
-    data = data.dropna(subset=["substrate_inchikey", "metabolite_inchikey"])
-    log(
-        logger_path,
-        f"Removed {data_size - len(data)} reactions with missing InChI.",
-    )
-
-    # Reset the index
-    data = data.reset_index(drop=True, inplace=False)
-
-    # Remove all hydrogen atoms
-    data["substrate_mol"] = data["substrate_mol"].apply(
-        lambda x: Chem.RemoveAllHs(x) if x is not None else None
-    )
-    data["metabolite_mol"] = data["metabolite_mol"].apply(
-        lambda x: Chem.RemoveAllHs(x) if x is not None else None
-    )
-
-    return data
 
 
 def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> Optional[int]:
@@ -237,28 +166,6 @@ def mol_to_graph(mol: Mol) -> nx.Graph:
     for bond in mol.GetBonds():
         mol_graph.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
     return mol_graph
-
-
-def standardize_data(data: pd.DataFrame, logger_path: str) -> pd.DataFrame:
-    """Standardize the data using the ChEMBL standardizer.
-
-    Args:
-        data (pd.DataFrame): DataFrame containing the substrate and metabolite molecules.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the standardized substrate and metabolite molecules.
-    """
-    data_size = len(data)
-
-    data = data.apply(_standardize_row, axis=1)
-    data = data.dropna(subset=["substrate_mol", "metabolite_mol"])
-
-    log(
-        logger_path,
-        f"Standardization removed {data_size - len(data)} reactions.",
-    )
-
-    return data
 
 
 def symmetrize_soms(mol: Mol, soms: List[int]) -> List[int]:

@@ -5,9 +5,12 @@ given a substrate and a metabolite molecule."""
 
 from typing import List, Optional, Tuple
 
+from chembl_structure_pipeline import standardizer
 from networkx.algorithms import isomorphism
 from rdkit.Chem import (Atom, FragmentOnBonds, GetMolFrags, Mol, MolFromSmarts,
-                        MolFromSmiles, rdFMCS)
+                        MolFromSmiles, MolToInchiKey, RemoveAllHs, SanitizeMol,
+                        rdFMCS)
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from src.utils import (count_elements, get_bond_order,
                        get_neighbor_atomic_nums, is_carbon_count_unchanged,
@@ -749,6 +752,54 @@ class Annotator:
         self.params.BondCompareParameters.MatchFusedRingsStrict = False
         self.params.BondCompareParameters.RingMatchesRingOnly = False
 
+    def check_atoms(self) -> bool:
+        """Check if the molecules contain any invalid atoms."""
+        allowed_atoms = {
+            "H",
+            "C",
+            "N",
+            "O",
+            "S",
+            "P",
+            "F",
+            "Cl",
+            "Br",
+            "I",
+            "B",
+            "Si",
+            "Se",
+        }
+        substrate_atoms = set(atom.GetSymbol() for atom in self.substrate.GetAtoms())
+        metabolite_atoms = set(atom.GetSymbol() for atom in self.metabolite.GetAtoms())
+        if not substrate_atoms.issubset(allowed_atoms):
+            log(
+                self.logger_path,
+                f"Invalid atom in the substrate: {substrate_atoms.difference(allowed_atoms)}",
+            )
+            return True
+        if not metabolite_atoms.issubset(allowed_atoms):
+            log(
+                self.logger_path,
+                f"Invalid atom in the metabolite: {metabolite_atoms.difference(allowed_atoms)}",
+            )
+            return True
+        return False
+
+    def check_validity(self) -> bool:
+        """Check if the substrate and metabolite are valid molecules (inchikey can be computed)."""
+        substrate_inchikey = MolToInchiKey(self.substrate)
+        metabolite_inchikey = MolToInchiKey(self.metabolite)
+        if substrate_inchikey is None:
+            log(self.logger_path, "Invalid substrate.")
+            return True
+        if metabolite_inchikey is None:
+            log(self.logger_path, "Invalid metabolite.")
+            return True
+        if substrate_inchikey == metabolite_inchikey:
+            log(self.logger_path, "Identical substrate and metabolite.")
+            return True
+        return False
+
     def compute_weight_ratio(self) -> int:
         """Compute whether the substrate is lighter, \
         heavier or equally heavy than the metabolite."""
@@ -1252,6 +1303,33 @@ class Annotator:
             f"Substrate ID: {self.substrate_id}, Metabolite ID: {self.metabolite_id}",
         )
 
+    def remove_hydrogens(self) -> None:
+        """Remove hydrogens from the substrate and metabolite."""
+        self.substrate = RemoveAllHs(self.substrate)
+        self.metabolite = RemoveAllHs(self.metabolite)
+
+    def standardize_molecules(self) -> bool:
+        """Standardize the substrate and metabolite."""
+        # Get main fragment (remove counterions, solvents, etc.)
+        self.substrate = standardizer.get_parent_mol(self.substrate)[0]
+        self.metabolite = standardizer.get_parent_mol(self.metabolite)[0]
+
+        # Get canonical tautomers
+        self.substrate = rdMolStandardize.CanonicalTautomer(self.substrate)
+        self.metabolite = rdMolStandardize.CanonicalTautomer(self.metabolite)
+
+        # Sanitize (this operation is in place)
+        SanitizeMol(self.substrate)
+        SanitizeMol(self.metabolite)
+
+        if self.substrate is None:
+            log(self.logger_path, "Substrate standardization failed.")
+            return True
+        if self.metabolite is None:
+            log(self.logger_path, "Metabolite standardization failed.")
+            return True
+        return False
+
 
 def annotate_soms(
     substrate: Tuple[Mol, int],
@@ -1269,8 +1347,17 @@ def annotate_soms(
         ester_hydrolysis=ester_hydrolysis,
     )
 
-    som_finder.initialize_atom_notes()
     som_finder.log_initial_reaction_info()
+
+    if som_finder.check_validity():
+        return som_finder.log_and_return_soms()
+    if som_finder.check_atoms():
+        return som_finder.log_and_return_soms()
+    # if som_finder.standardize_molecules():
+    #     return som_finder.log_and_return_soms()
+
+    som_finder.remove_hydrogens()
+    som_finder.initialize_atom_notes()
 
     if som_finder.is_glutathione_conjugation():
         if som_finder.handle_glutathione_conjugation():
