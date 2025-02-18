@@ -1,21 +1,27 @@
+"""This module provides functionalities to annotate SOMs for oxidative dehalogenation reactions.
+
+In the context of AutoSOM, these are reactions where
+the number of carbon atoms in the substrate is the same as in the metabolite,
+the number of halogens in the substrate is decreased by one,
+and the number of oxygen atoms in the substrate is increased by one.
+This class provides functionalities to annotate SoMs for general oxidative dehalogenation reactions,
+as well as for specific cases: ox. dehal. producing an epoxide or a quinone-like metabolite.
+"""
+
 from typing import Optional
 
 from rdkit.Chem import Atom, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
-from .utils import (
-    count_elements,
-    get_bond_order,
-    is_carbon_count_unchanged,
-    is_halogen_count_decreased,
-    is_oxygen_count_increased,
-    log,
-)
+from .utils import (count_elements, get_bond_order, is_carbon_count_unchanged,
+                    is_halogen_count_decreased, is_oxygen_count_increased, log)
 
 
 class OxidativeDehalogenationAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for oxidative dehalogenation reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_epoxide(self) -> bool:
         """Correct the SoMs for oxidative dehalogenation if \
@@ -154,6 +160,8 @@ class OxidativeDehalogenationAnnotator(BaseAnnotator):
                     self.reaction_type = "oxidative dehalogenation (epoxide)"
                     return True
 
+            # If the reaction produces a quinone-like metabolite (instead of the typical alcohol),
+            # find the other atom that is part of the quinone-like structure and add it to the SoMs
             if self._is_in_quinone(self.mapping[self.soms[0]]):
                 if self._correct_quinone_like_oxidation():
                     self.reaction_type = "oxidative dehalogenation (quinone-like)"

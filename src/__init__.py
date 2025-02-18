@@ -26,16 +26,16 @@ __version__ = "0.1.0"
 __author__ = "Roxane A. Jacob"
 
 from .addition_annotator import AdditionAnnotator
-from .base_annotator import BaseAnnotator
+from .base_annotator import BaseAnnotator, annotate_soms
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
 from .glutathione_annotator import GlutathioneAnnotator
-from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
-from .pilot_annotator import PilotAnnotator
+from .oxidative_dehalogenation_annotator import \
+    OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 
 __all__ = [
-    "PilotAnnotator",
+    "annotate_soms",
     "BaseAnnotator",
     "GlutathioneAnnotator",
     "OxidativeDehalogenationAnnotator",

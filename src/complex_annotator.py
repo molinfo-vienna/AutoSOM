@@ -1,3 +1,5 @@
+"""This module provides functionalities to annotate SOMs for complex reactions."""
+
 from networkx.algorithms import isomorphism
 from rdkit.Chem import MolFromSmarts, rdFMCS
 
@@ -6,8 +8,10 @@ from .utils import get_neighbor_atomic_nums, log, mol_to_graph
 
 
 class ComplexAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for complex reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_alkyl_chain_deletion(self) -> bool:
         """Correct SoMs for the deletion of one or more carbon atoms from an alkyl chain."""

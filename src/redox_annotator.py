@@ -1,3 +1,12 @@
+"""This module provides functionalities to annotate SOMs for redox reactions.
+
+In the context of AutoSOM, these are reactions where
+the number of hevay atoms in the substrate and metabolite are the same,
+the number of halogens in the substrate and metabolite are the same,
+and the MCS covers all but one heavy atom in the substrate.
+An example of a redox reaction is the conversion of a ketone to an alcohol.
+"""
+
 from rdkit.Chem import Mol, rdFMCS
 
 from .base_annotator import BaseAnnotator
@@ -5,8 +14,10 @@ from .utils import log
 
 
 class RedoxAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for redox reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_cn_redox(self) -> bool:
         """

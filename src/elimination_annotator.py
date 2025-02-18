@@ -1,12 +1,25 @@
-from rdkit.Chem import MolFromSmarts, rdFMCS
+"""This module provides functionalities to annotate SOMs for elimination reactions.
+
+In the context of AutoSOM, these are reactions where
+the number of heavy atoms in the substrate is greater than in the metabolite,
+and the mol graph of the substrate is entirely contained in the mol graph of the metabolite.
+An example of an elimination reaction would be the demethylation of a methylamine functional group.
+This class provides functionalities to annotate SoMs for general elimination reactions,
+as well as for specific cases: ester hydrolysis, acetal hydrolysis, phosphate hydrolysis,
+sulfur-derivatives hydrolysis, and piperazine ring opening.
+"""
+
+from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
 from .utils import get_bond_order, log
 
 
 class EliminationAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for elimination reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_acetal_hydrolysis(self) -> bool:
         """Correct SoMs for acetals."""
@@ -39,7 +52,7 @@ class EliminationAnnotator(BaseAnnotator):
 
     def _correct_ester_hydrolysis(self) -> bool:
         """Correct SoMs for ester hydrolysis."""
-        if not self.ester_hydrolysis:
+        if not self.ester_hydrolysis_flag:
             return False
 
         ester_pattern = MolFromSmarts("[*][C](=O)[O][*]")
@@ -146,6 +159,14 @@ class EliminationAnnotator(BaseAnnotator):
             log(self.logger_path, "Piperazine ring opening detected. Corrected SoMs.")
             return True
         return False
+
+    def _find_unmatched_atoms(self, target: Mol, mcs) -> list:
+        """Find unmatched atoms between the target and the query molecule."""
+        return [
+            atom
+            for atom in target.GetAtoms()
+            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
+        ]
 
     def _general_case_simple_elimination(self, unmatched_atoms, target, mcs):
         """Identify SoMs in the simple elimination case based on unmatched atoms."""

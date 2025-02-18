@@ -33,7 +33,15 @@ vis = [
   "ipywidgets"
 ]
 
+[tool.isort]
+profile = "black"
+
 [tool.pylint.messages-control]
 disable = [
-    "E0611",  # No name '...' in module '...' (import errors related to RDKit)
+  "no-name-in-module",  # import errors related to RDKit
+]
+
+[tool.pydocstyle]
+ignore = [
+  "D107",  # Missing docstring in __init__
 ]

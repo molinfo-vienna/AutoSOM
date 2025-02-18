@@ -3,10 +3,19 @@
 """This module provides base functionalities for annotating sites of metabolism (SOMs) \
 given a substrate and a metabolite molecule."""
 
-from typing import List
+from typing import List, Tuple
 
-from rdkit.Chem import Mol, rdFMCS
+from chembl_structure_pipeline import standardizer
+from rdkit.Chem import Mol, MolToInchiKey, RemoveAllHs, SanitizeMol, rdFMCS
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
+from .addition_annotator import AdditionAnnotator
+from .complex_annotator import ComplexAnnotator
+from .elimination_annotator import EliminationAnnotator
+from .glutathione_annotator import GlutathioneAnnotator
+from .oxidative_dehalogenation_annotator import \
+    OxidativeDehalogenationAnnotator
+from .redox_annotator import RedoxAnnotator
 from .utils import log
 
 
@@ -22,23 +31,22 @@ class BaseAnnotator:
         params (rdFMCS.MCSParameters): Parameters for the Maximum Common Substructure (MCS) search.
         reaction_type (str): Type of reaction identified.
         soms (List[int]): List of identified SoMs.
-
-    Methods:
     """
 
     def __init__(
         self,
-        substrate_mol: Mol,
-        substrate_id: int,
-        metabolite_mol: Mol,
-        metabolite_id: int,
+        params: Tuple[str, int, bool],
+        substrate_data: Tuple[Mol, int],
+        metabolite_data: Tuple[Mol, int],
     ):
         """Initialize the BaseAnnotator class."""
-
-        self.substrate = substrate_mol
-        self.substrate_id = substrate_id
-        self.metabolite = metabolite_mol
-        self.metabolite_id = metabolite_id
+        self.logger_path = params[0]
+        self.filter_size = params[1]
+        self.ester_hydrolysis_flag = params[2]
+        self.substrate = substrate_data[0]
+        self.substrate_id = substrate_data[1]
+        self.metabolite = metabolite_data[0]
+        self.metabolite_id = metabolite_data[1]
 
         self.mapping: dict[int, int] = {}
         self.params = self._initialize_mcs_params()
@@ -84,7 +92,192 @@ class BaseAnnotator:
         self.params.BondCompareParameters.MatchFusedRingsStrict = False
         self.params.BondCompareParameters.RingMatchesRingOnly = False
 
+    def check_atom_types(self) -> bool:
+        """Check if the molecules contain any invalid atoms."""
+        allowed_atoms = {
+            "H",
+            "C",
+            "N",
+            "O",
+            "S",
+            "P",
+            "F",
+            "Cl",
+            "Br",
+            "I",
+            "B",
+            "Si",
+            "Se",
+        }
+        substrate_atoms = set(atom.GetSymbol() for atom in self.substrate.GetAtoms())
+        metabolite_atoms = set(atom.GetSymbol() for atom in self.metabolite.GetAtoms())
+        if not substrate_atoms.issubset(allowed_atoms):
+            log(
+                self.logger_path,
+                f"Invalid atom in the substrate: {substrate_atoms.difference(allowed_atoms)}",
+            )
+            return False
+        if not metabolite_atoms.issubset(allowed_atoms):
+            log(
+                self.logger_path,
+                f"Invalid atom in the metabolite: {metabolite_atoms.difference(allowed_atoms)}",
+            )
+            return False
+        return True
+
+    def check_inchi_validity(self) -> bool:
+        """Check if the substrate and metabolite are valid molecules (inchikey can be computed)."""
+        substrate_inchikey = MolToInchiKey(self.substrate)
+        metabolite_inchikey = MolToInchiKey(self.metabolite)
+        if substrate_inchikey is None:
+            log(self.logger_path, "Invalid substrate.")
+            return False
+        if metabolite_inchikey is None:
+            log(self.logger_path, "Invalid metabolite.")
+            return False
+        if substrate_inchikey == metabolite_inchikey:
+            log(self.logger_path, "Identical substrate and metabolite.")
+            return False
+        return True
+
+    def compute_weight_ratio(self) -> int:
+        """Compute whether the substrate is lighter, \
+        heavier or equally heavy than the metabolite."""
+        if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
+            log(self.logger_path, "Substrate lighter than metabolite.")
+            return 1
+        if self.substrate.GetNumHeavyAtoms() > self.metabolite.GetNumHeavyAtoms():
+            log(self.logger_path, "Substrate heavier than the metabolite.")
+            return -1
+        return 0
+
+    def initialize_atom_notes(self) -> None:
+        """Initialize the atom note properties for the substrate and the metabolite."""
+        for atom in self.substrate.GetAtoms():
+            atom.SetIntProp("atomNote", atom.GetIdx())
+        for atom in self.metabolite.GetAtoms():
+            atom.SetIntProp("atomNote", atom.GetIdx())
+
+    def is_too_large_to_process(self) -> bool:
+        """Check if the substrate or metabolite is too large for further processing."""
+        if (
+            self.substrate.GetNumHeavyAtoms() > self.filter_size
+            or self.metabolite.GetNumHeavyAtoms() > self.filter_size
+        ):
+            log(
+                self.logger_path,
+                "Substrate or metabolite too large for processing.",
+            )
+            self.reaction_type = "too many atoms"
+            return True
+        return False
+
     def log_and_return(self) -> tuple[list[int], str]:
         """Log annotation rule and return SOMs and annotation rule."""
-        log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
+        if self.reaction_type == "unknown":
+            log(self.logger_path, "No reaction detected.")
+        else:
+            log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
         return sorted(self.soms), self.reaction_type
+
+    def log_initial_reaction_info(self) -> None:
+        """Log the initial reaction information."""
+        log(
+            self.logger_path,
+            f"Substrate ID: {self.substrate_id}, Metabolite ID: {self.metabolite_id}",
+        )
+
+    def remove_hydrogens(self) -> None:
+        """Remove hydrogens from the substrate and metabolite."""
+        self.substrate = RemoveAllHs(self.substrate)
+        self.metabolite = RemoveAllHs(self.metabolite)
+
+    def standardize_molecules(self) -> bool:
+        """Standardize the substrate and metabolite."""
+        # Get main fragment (remove counterions, solvents, etc.)
+        self.substrate = standardizer.get_parent_mol(self.substrate)[0]
+        self.metabolite = standardizer.get_parent_mol(self.metabolite)[0]
+
+        # Get canonical tautomers
+        self.substrate = rdMolStandardize.CanonicalTautomer(self.substrate)
+        self.metabolite = rdMolStandardize.CanonicalTautomer(self.metabolite)
+
+        # Sanitize (this operation is in place)
+        SanitizeMol(self.substrate)
+        SanitizeMol(self.metabolite)
+
+        if self.substrate is None:
+            log(self.logger_path, "Substrate standardization failed.")
+            return True
+        if self.metabolite is None:
+            log(self.logger_path, "Metabolite standardization failed.")
+            return True
+        return False
+
+
+def annotate_soms(
+    params: Tuple[str, int, bool],
+    substrate_data: Tuple[Mol, int],
+    metabolite_data: Tuple[Mol, int],
+) -> Tuple[List[int], str]:
+    """Annotates SoMs for a given substrate-metabolite pair."""
+    annotator = BaseAnnotator(params, substrate_data, metabolite_data)
+
+    annotator.log_initial_reaction_info()
+
+    if not annotator.check_inchi_validity():
+        return annotator.log_and_return()
+    if not annotator.check_atom_types():
+        return annotator.log_and_return()
+    # if not annotator.standardize_molecules():
+    #     return annotator.log_and_return()
+
+    annotator.remove_hydrogens()
+    annotator.initialize_atom_notes()
+
+    glutathione_annotator = GlutathioneAnnotator(
+        params, substrate_data, metabolite_data
+    )
+    oxidative_dehalogation_annotator = OxidativeDehalogenationAnnotator(
+        params, substrate_data, metabolite_data
+    )
+    addition_annotator = AdditionAnnotator(params, substrate_data, metabolite_data)
+    elimination_annotator = EliminationAnnotator(
+        params, substrate_data, metabolite_data
+    )
+    redox_annotator = RedoxAnnotator(params, substrate_data, metabolite_data)
+    complex_annotator = ComplexAnnotator(params, substrate_data, metabolite_data)
+
+    if glutathione_annotator.is_glutathione_conjugation():
+        if glutathione_annotator.handle_glutathione_conjugation():
+            return glutathione_annotator.log_and_return()
+
+    if oxidative_dehalogation_annotator.is_oxidative_dehalogenation():
+        if oxidative_dehalogation_annotator.handle_oxidative_dehalogenation():
+            return oxidative_dehalogation_annotator.log_and_return()
+
+    weight_ratio = annotator.compute_weight_ratio()
+
+    if weight_ratio == 1:
+        if addition_annotator.handle_simple_addition():
+            return addition_annotator.log_and_return()
+
+    if weight_ratio == -1:
+        if elimination_annotator.handle_simple_elimination():
+            return elimination_annotator.log_and_return()
+
+    elif weight_ratio == 0:
+        # The next steps rely more heavily on MCS matching,
+        # which can take very long for large molecules,
+        # so we skip them if the substrate or metabolite is
+        # too large (filter_size parameter).
+        if annotator.is_too_large_to_process():
+            annotator.log_and_return()
+
+        if redox_annotator.handle_redox_reaction():
+            return redox_annotator.log_and_return()
+
+        if complex_annotator.handle_complex_reaction():
+            return complex_annotator.log_and_return()
+
+    return annotator.log_and_return()

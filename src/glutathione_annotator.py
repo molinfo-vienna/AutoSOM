@@ -1,3 +1,10 @@
+"""This module provides functionalities to annotate SOMs for glutathione conjugation reactions.
+
+The glutathione moiety is a tripeptide composed of glutamic acid, cysteine, and glycine.
+AutoSOM finds these reactions by identifying the glutathione moiety in the metabolite,
+via SMARTS pattern matching.
+"""
+
 from typing import Optional
 
 from rdkit.Chem import FragmentOnBonds, GetMolFrags, MolFromSmiles, rdFMCS
@@ -7,8 +14,10 @@ from .utils import log
 
 
 class GlutathioneAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for glutathione conjugation reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _find_sulfur_index(self, glutathione_indices: list) -> Optional[int]:
         """

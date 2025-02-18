@@ -1,12 +1,24 @@
-from rdkit.Chem import MolFromSmarts, rdFMCS
+"""This module provides functionalities to annotate SOMs for addition reactions.
+
+In the context of AutoSOM, these are reactions where
+the number of heavy atoms in the substrate is less than in the metabolite,
+and the mol graph of the metabolite is entirely contained in the mol graph of the substrate.
+An example of an addition reaction would be the "addition" of an hydroxy group to an aromatic ring.
+This class provides functionalities to annotate SoMs for general addition reactions,
+as well as for a specific case: carnitine addition.
+"""
+
+from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
 from .utils import log
 
 
 class AdditionAnnotator(BaseAnnotator):
-    def __init__(self, substrate, substrate_id, metabolite, metabolite_id):
-        super().__init__(substrate, substrate_id, metabolite, metabolite_id)
+    """Annotate SoMs for addition reactions."""
+
+    def __init__(self, params, substrate_data, metabolite_data):
+        super().__init__(params, substrate_data, metabolite_data)
 
     def _correct_carnitine_addition(self) -> bool:
         """Correct SoMs for the addition of carnitine to a carboxylic acid."""
@@ -30,6 +42,14 @@ class AdditionAnnotator(BaseAnnotator):
             log(self.logger_path, "Carnitine addition detected. Corrected SoMs.")
             return True
         return False
+
+    def _find_unmatched_atoms(self, target: Mol, mcs) -> list:
+        """Find unmatched atoms between the target and the query molecule."""
+        return [
+            atom
+            for atom in target.GetAtoms()
+            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
+        ]
 
     def _general_case_simple_addition(self, unmatched_atoms, query, mcs):
         """Identify SoMs in the simple addition case based on unmatched atoms."""
