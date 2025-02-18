@@ -26,7 +26,8 @@ __version__ = "0.1.0"
 __author__ = "Roxane A. Jacob"
 
 from .addition_annotator import AdditionAnnotator
-from .base_annotator import BaseAnnotator, annotate_soms
+from .autosom import annotate_soms
+from .base_annotator import BaseAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
 from .glutathione_annotator import GlutathioneAnnotator
