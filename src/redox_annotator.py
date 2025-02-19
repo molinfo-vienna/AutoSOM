@@ -16,6 +16,15 @@ from .utils import log
 class RedoxAnnotator(BaseAnnotator):
     """Annotate SoMs for redox reactions."""
 
+    @classmethod
+    def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
+        """Find unmatched atoms between the target and the query molecule."""
+        return [
+            atom
+            for atom in target.GetAtoms()
+            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
+        ]
+
     def _correct_cn_redox(self) -> bool:
         """Apply corrections if the redox reaction involves a C-N bond."""
         covered_atom_types = [
@@ -33,14 +42,6 @@ class RedoxAnnotator(BaseAnnotator):
             return True
 
         return False
-
-    def _find_unmatched_atoms(self, target: Mol, mcs) -> list:
-        """Find unmatched atoms between the target and the query molecule."""
-        return [
-            atom
-            for atom in target.GetAtoms()
-            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
-        ]
 
     def _has_equal_number_halogens(self) -> bool:
         """Check if substrate and metabolite have the same number of

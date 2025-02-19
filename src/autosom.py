@@ -8,7 +8,6 @@ from .addition_annotator import AdditionAnnotator
 from .base_annotator import BaseAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
-from .glutathione_annotator import GlutathioneAnnotator
 from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 
@@ -33,9 +32,6 @@ def annotate_soms(
     annotator.remove_hydrogens()
     annotator.initialize_atom_notes()
 
-    glutathione_annotator = GlutathioneAnnotator(
-        params, substrate_data, metabolite_data
-    )
     oxidative_dehalogation_annotator = OxidativeDehalogenationAnnotator(
         params, substrate_data, metabolite_data
     )
@@ -46,22 +42,14 @@ def annotate_soms(
     redox_annotator = RedoxAnnotator(params, substrate_data, metabolite_data)
     complex_annotator = ComplexAnnotator(params, substrate_data, metabolite_data)
 
-    if glutathione_annotator.is_glutathione_conjugation():
-        if glutathione_annotator.handle_glutathione_conjugation():
-            return glutathione_annotator.log_and_return()
-
-    if oxidative_dehalogation_annotator.is_oxidative_dehalogenation():
-        if oxidative_dehalogation_annotator.handle_oxidative_dehalogenation():
-            return oxidative_dehalogation_annotator.log_and_return()
-
     weight_ratio = annotator.compute_weight_ratio()
 
     if weight_ratio == 1:
-        if addition_annotator.handle_simple_addition():
+        if addition_annotator.handle_addition():
             return addition_annotator.log_and_return()
 
     if weight_ratio == -1:
-        if elimination_annotator.handle_simple_elimination():
+        if elimination_annotator.handle_elimination():
             return elimination_annotator.log_and_return()
 
     # The next steps rely more heavily on MCS matching,
@@ -71,8 +59,13 @@ def annotate_soms(
     if annotator.is_too_large_to_process():
         return annotator.log_and_return()
 
-    if weight_ratio == 0 and redox_annotator.handle_redox_reaction():
-        return redox_annotator.log_and_return()
+    if weight_ratio == 0:
+        if oxidative_dehalogation_annotator.is_oxidative_dehalogenation():
+            if oxidative_dehalogation_annotator.handle_oxidative_dehalogenation():
+                return oxidative_dehalogation_annotator.log_and_return()
+
+        if redox_annotator.handle_redox_reaction():
+            return redox_annotator.log_and_return()
 
     if complex_annotator.handle_complex_reaction():
         return complex_annotator.log_and_return()

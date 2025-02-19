@@ -30,14 +30,12 @@ from .autosom import annotate_soms
 from .base_annotator import BaseAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
-from .glutathione_annotator import GlutathioneAnnotator
 from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 
 __all__ = [
     "annotate_soms",
     "BaseAnnotator",
-    "GlutathioneAnnotator",
     "OxidativeDehalogenationAnnotator",
     "AdditionAnnotator",
     "EliminationAnnotator",

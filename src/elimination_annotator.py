@@ -42,7 +42,7 @@ class EliminationAnnotator(BaseAnnotator):
         ]
         if corrected_soms:
             self.soms = corrected_soms
-            self.reaction_type = "simple elimination (acetal)"
+            self.reaction_type = "elimination (acetal)"
             log(self.logger_path, "Acetal elimination detected. Corrected SoMs.")
             return True
         return False
@@ -67,7 +67,7 @@ class EliminationAnnotator(BaseAnnotator):
         ]
         if corrected_soms:
             self.soms = corrected_soms
-            self.reaction_type = "simple elimination (ester hydrolysis)"
+            self.reaction_type = "elimination (ester hydrolysis)"
             log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
             return True
         return False
@@ -83,7 +83,7 @@ class EliminationAnnotator(BaseAnnotator):
         if (
             som_atom.GetSymbol() == "P"
         ):  # if the som is a phosphore atom, leave it as it is
-            self.reaction_type = "simple elimination (phosphate-derivative hydrolysis)"
+            self.reaction_type = "elimination (phosphate-derivative hydrolysis)"
             log(
                 self.logger_path,
                 "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
@@ -95,9 +95,7 @@ class EliminationAnnotator(BaseAnnotator):
                 # we have the case where a phosphore hydrolysis took place,
                 # and the metabolite does **not** contain the phosphate functional group anymore
                 self.soms = [neighbor.GetIdx()]
-                self.reaction_type = (
-                    "simple elimination (phosphate-derivative hydrolysis)"
-                )
+                self.reaction_type = "elimination (phosphate-derivative hydrolysis)"
                 log(
                     self.logger_path,
                     "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
@@ -129,7 +127,7 @@ class EliminationAnnotator(BaseAnnotator):
             for atom in self.substrate.GetAtoms()
             if atom.GetSymbol() == "S"
         ]
-        self.reaction_type = "simple elimination (sulfur-derivative hydrolysis)"
+        self.reaction_type = "elimination (sulfur-derivative hydrolysis)"
         log(self.logger_path, "Sulfur-derivative hydrolysis detected. Corrected SoMs.")
         return True
 
@@ -152,7 +150,7 @@ class EliminationAnnotator(BaseAnnotator):
         ]
         if additional_soms:
             self.soms.extend(additional_soms)
-            self.reaction_type = "simple elimination (piperazine ring opening)"
+            self.reaction_type = "elimination (piperazine ring opening)"
             log(self.logger_path, "Piperazine ring opening detected. Corrected SoMs.")
             return True
         return False
@@ -166,8 +164,8 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
         ]
 
-    def _general_case_simple_elimination(self, unmatched_atoms, target, mcs):
-        """Identify SoMs in the simple elimination case based on unmatched
+    def _general_case_elimination(self, unmatched_atoms, target, mcs):
+        """Identify SoMs in the elimination case based on unmatched
         atoms."""
         for atom in unmatched_atoms:  # iterate over unmatched atoms
             for (
@@ -186,7 +184,7 @@ class EliminationAnnotator(BaseAnnotator):
                         self.soms.append(
                             atom.GetIdx()
                         )  # ...add the unmatched atom to the SoMs
-                    self.reaction_type = "simple elimination (general)"
+                    self.reaction_type = "elimination (general)"
 
     def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
         """Check if an atom has both single and double bonded oxygen
@@ -198,13 +196,13 @@ class EliminationAnnotator(BaseAnnotator):
         ]
         return "O1" in neighbor_bonds and "O2" in neighbor_bonds
 
-    def handle_simple_elimination(self) -> bool:
-        """Annotate SoMs for simple elimination reactions.
+    def handle_elimination(self) -> bool:
+        """Annotate SoMs for elimination reactions.
 
         Returns:
-            bool: True if a simple elimination reaction is found, False otherwise.
+            bool: True if a elimination reaction is found, False otherwise.
         """
-        log(self.logger_path, "Attempting simple elimination matching.")
+        log(self.logger_path, "Attempting elimination matching.")
 
         if not self.substrate.HasSubstructMatch(self.metabolite):
             return False
@@ -219,7 +217,7 @@ class EliminationAnnotator(BaseAnnotator):
             mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.mcs_params)
             unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
 
-            self._general_case_simple_elimination(unmatched_atoms, self.substrate, mcs)
+            self._general_case_elimination(unmatched_atoms, self.substrate, mcs)
 
             if self._correct_ester_hydrolysis():
                 return True
@@ -238,5 +236,5 @@ class EliminationAnnotator(BaseAnnotator):
 
             return True
         except (ValueError, KeyError, AttributeError) as e:
-            log(self.logger_path, f"Simple elimination matching failed. Error: {e}")
+            log(self.logger_path, f"Elimination matching failed. Error: {e}")
             return False
