@@ -40,6 +40,7 @@ profile = "black"
 disable = [
   "c-extension-no-member",  # errors related to RDKit
   "no-name-in-module",  # errors related to RDKit
+  "no-member",  # errors related to RDKit
   "duplicate-code",
   "too-many-return-statements",
   "too-many-nested-blocks",

@@ -69,7 +69,7 @@ class AdditionAnnotator(BaseAnnotator):
                     self.soms.append(
                         mapped_idx
                     )  # ...add the correct neighbor to the SoMs
-                    self.reaction_type = "simple addition"
+                    self.reaction_type = "simple addition (general)"
 
     def handle_simple_addition(self) -> bool:
         """Annotate SoMs for simple addition reactions."""

@@ -1,6 +1,6 @@
 """Annotates SOMs for redox reactions.
 
-In the context of AutoSOM, these are reactions where the number of hevay
+In the context of AutoSOM, these are reactions where the number of heavy
 atoms in the substrate and metabolite are the same, the number of
 halogens in the substrate and metabolite are the same, and the MCS
 covers all but one heavy atom in the substrate. An example of a redox
@@ -64,6 +64,14 @@ class RedoxAnnotator(BaseAnnotator):
         """Annotate SoMs for redox reactions."""
         try:
             log(self.logger_path, "Attempting redox reaction matching.")
+
+            # Check if the number of halogen atoms in the substrate and
+            # metabolite are the same
+            if not self._has_equal_number_halogens():
+                log(self.logger_path, "Not a redox reaction.")
+                return False
+
+            # Find the MCS between the substrate and metabolite
             self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
             self._set_mcs_bond_compare_params_to_redox()
             mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
@@ -74,10 +82,7 @@ class RedoxAnnotator(BaseAnnotator):
                 log(self.logger_path, "Not a redox reaction.")
                 return False
 
-            if not self._has_equal_number_halogens():
-                log(self.logger_path, "Not a redox reaction.")
-                return False
-
+            # Find unmatched atoms in the substrate
             unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
 
             for atom in unmatched_atoms:
@@ -90,7 +95,7 @@ class RedoxAnnotator(BaseAnnotator):
 
                     # Annotate redox reaction sites
                     self.soms.extend([atom.GetIdx(), neighbor.GetIdx()])
-                    self.reaction_type = "redox"
+                    self.reaction_type = "redox (general)"
 
                     # Apply corrections for C-N bond redox reactions
                     if self._correct_cn_redox():
