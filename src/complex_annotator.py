@@ -300,8 +300,9 @@ class ComplexAnnotator(BaseAnnotator):
                 != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
             )
         ]
-        if bool(self.soms):
-            self.reaction_type = "complex (maximum common subgraph matching)"
+
+        if self._correct_thiourea_reduction():
+            return True
 
         if self._correct_oxacyclopropane_hydrolysis():
             return True
@@ -309,10 +310,11 @@ class ComplexAnnotator(BaseAnnotator):
         if self._correct_ring_opening():
             return True
 
-        if self._correct_thiourea_reduction():
-            return True
-
         # if self._correct_alkyl_chain_deletion():
         #     return True
 
-        return bool(self.soms)
+        if bool(self.soms):
+            self.reaction_type = "complex (maximum common subgraph matching)"
+            return True
+
+        return False

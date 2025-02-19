@@ -1,3 +1,5 @@
+"""Contains pilot function for SOM annotation"""
+
 from typing import List, Tuple
 
 from rdkit.Chem import Mol
@@ -62,18 +64,17 @@ def annotate_soms(
         if elimination_annotator.handle_simple_elimination():
             return elimination_annotator.log_and_return()
 
-    elif weight_ratio == 0:
-        # The next steps rely more heavily on MCS matching,
-        # which can take very long for large molecules,
-        # so we skip them if the substrate or metabolite is
-        # too large (filter_size parameter).
-        if annotator.is_too_large_to_process():
-            return annotator.log_and_return()
+    # The next steps rely more heavily on MCS matching,
+    # which can take very long for large molecules,
+    # so we skip them if the substrate or metabolite is
+    # too large (filter_size parameter).
+    if annotator.is_too_large_to_process():
+        return annotator.log_and_return()
 
-        if redox_annotator.handle_redox_reaction():
-            return redox_annotator.log_and_return()
+    if weight_ratio == 0 and redox_annotator.handle_redox_reaction():
+        return redox_annotator.log_and_return()
 
-        if complex_annotator.handle_complex_reaction():
-            return complex_annotator.log_and_return()
+    if complex_annotator.handle_complex_reaction():
+        return complex_annotator.log_and_return()
 
     return annotator.log_and_return()
