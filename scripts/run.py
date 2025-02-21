@@ -175,6 +175,7 @@ if __name__ == "__main__":
     PandasTools.WriteSDF(
         df=data_merged,
         out=os.path.join(args.outputPath, "merged.sdf"),
+        idName="substrate_id",
         molColName="substrate_mol",
         properties=[column for column in data_merged.columns if "mol" not in column],
     )
