@@ -9,10 +9,12 @@ as well as for specific cases: ester hydrolysis, acetal hydrolysis, phosphate hy
 sulfur-derivatives hydrolysis, and piperazine ring opening.
 """
 
+from networkx import isomorphism
+
 from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
-from .utils import get_bond_order, log
+from .utils import get_bond_order, log, mol_to_graph
 
 
 class EliminationAnnotator(BaseAnnotator):
@@ -79,11 +81,10 @@ class EliminationAnnotator(BaseAnnotator):
                 return True
             return False
 
-    def _correct_thio_phosphate_hydrolysis(self, smarts, type) -> bool:
+    def _correct_hydrolysis_of_esters_of_inorganic_acids_phosphor(self, smarts, type) -> bool:
         """Correct SoMs for phosphate or thiophosphate hydrolysis."""
-        phosphate_derivate_pattern = MolFromSmarts(smarts)
 
-        if not self.substrate.GetSubstructMatch(phosphate_derivate_pattern):
+        if not self.substrate.GetSubstructMatch(MolFromSmarts(smarts)):
             return False
 
         som_atom = self.substrate.GetAtomWithIdx(self.soms[0])
@@ -93,7 +94,7 @@ class EliminationAnnotator(BaseAnnotator):
             self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
             log(
                 self.logger_path,
-                f"(Thio)phosphate-derivative hydrolysis detected. Left SoM as is.",
+                f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. No action needed.",
             )
             return True
         for neighbor in som_atom.GetNeighbors():
@@ -105,13 +106,26 @@ class EliminationAnnotator(BaseAnnotator):
                 self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
                 log(
                     self.logger_path,
-                    f"(Thio)phosphate-derivative hydrolysis detected. Corrected SoM.",
+                    f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
                 )
                 return True
+            for neighbor_bis in neighbor.GetNeighbors():
+                if neighbor_bis.GetSymbol() == "P":
+                    # if one of the neighbors of the neighbors is a phosphore atoms,
+                    # we have the case where the hydrolsysis of the ester was picked up
+                    # correctly by the algorithm, but the wrong side of the ester was annotated.
+                    # We theerfore correct the SOM.
+                    self.soms = [neighbor_bis.GetIdx()]
+                    self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
+                    log(
+                        self.logger_path,
+                        f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
+                    )
+                    return True
         return False
 
-    def _correct_sulfur_derivatives_hydrolysis(self) -> bool:
-        """Correct SoMs for the hydrolysis of sulfur derivatives.
+    def _correct_hydrolysis_of_esters_of_inorganic_acids_sulfur(self) -> bool:
+        """Correct SoMs for the hydrolysis of esters of sulfur-based inorganic.
         E.g.: sulfamate, sulfonamide, sulfonate, sulfuric diamide etc."""
         if len(self.soms) != 1:
             return False
@@ -135,10 +149,10 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetSymbol() == "S"
         ]
         self.reaction_type = "elimination (sulfur-derivative hydrolysis)"
-        log(self.logger_path, "Sulfur-derivative hydrolysis detected. Corrected SoMs.")
+        log(self.logger_path, "Hydrolysis of an ester of an inorganic (sulfur-based) acid detected. Corrected SoMs.")
         return True
 
-    def _correct_piperazine_ring_hydroysis(self) -> bool:
+    def _correct_piperazine_ring_hydrolysis(self) -> bool:
         """Correct SoMs for piperazine ring opening."""
         piperazine_pattern = MolFromSmarts("N1CCNCC1")
 
@@ -171,24 +185,29 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
         ]
 
-    def _general_case_elimination(self, unmatched_atoms, substrate, mcs):
-        """Identify SoMs in the elimination case based on unmatched
-        atoms."""
-        for atom in unmatched_atoms:  # iterate over unmatched atoms
-            for neighbor in atom.GetNeighbors():  # iterate over neighbors of the unmatched atom
-                if neighbor.GetIdx() in substrate.GetSubstructMatch(
-                    mcs.queryMol
-                ):  # if the neighbor is in the MCS...
-                    if atom.GetAtomicNum() == 6:  # ...and the unmatched atom is a carbon atom...
-                        self.soms.append(
-                            atom.GetIdx()
-                        )  # ...add the unmatched atom to the SoMs (TYPE 1)
-                        self.reaction_type = "elimination (general - C)"
-                    else:  # ...and the unmatched atom is NOT a carbon atom...
-                        self.soms.append(
-                            neighbor.GetIdx()
-                        )  # ...add the neighbor to the SoMs (TYPE 2)
-                        self.reaction_type = "elimination (general - !C)"
+    def _general_case_elimination(self, graph_matching_metabolite_in_substrate, substrate):
+        soms_lists = []
+        for matching in graph_matching_metabolite_in_substrate.subgraph_isomorphisms_iter():
+            soms = []
+            unmatched_atoms = [
+                atom
+                for atom in substrate.GetAtoms()
+                if atom.GetIdx() not in matching.keys()
+            ]
+            for atom in unmatched_atoms:
+                for neighbor in atom.GetNeighbors():
+                    if neighbor.GetIdx() in matching.keys(): # if the neighbor is in the mapping...
+                        if atom.GetAtomicNum() == 6:  # ...and the unmatched atom is a carbon atom...
+                            soms.append(atom.GetIdx())  # ...add the unmatched atom to the SoMs (TYPE 1)
+                            self.reaction_type = "elimination (general - type 1)"
+                        else:  # ...and the unmatched atom is NOT a carbon atom...
+                            soms.append(neighbor.GetIdx())  # ...add the neighbor to the SoMs (TYPE 2)
+                            self.reaction_type = "elimination (general - type 2)"
+            soms_lists.append(soms)
+
+        if len(soms_lists) > 0:
+            log(self.logger_path, "Multiple options for general elimination detected; choosing the one with the least SoMs.")
+            self.soms = min(soms_lists, key=len)
 
         # TYPE 1: dealkylation, deacylation
         # TYPE 2: also dealkylation and deacylation, but with the "leaving group" as recorded metabolite (rare),
@@ -221,28 +240,34 @@ class EliminationAnnotator(BaseAnnotator):
         )
 
         try:
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.mcs_params)
-            unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
 
-            self._general_case_elimination(unmatched_atoms, self.substrate, mcs)
+            mol_graph_substrate = mol_to_graph(self.substrate)
+            mol_graph_metabolite = mol_to_graph(self.metabolite)
+
+            graph_matching_metabolite_in_substrate = isomorphism.GraphMatcher(
+                mol_graph_substrate,
+                mol_graph_metabolite,
+                node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
+            )
+
+            self._general_case_elimination(graph_matching_metabolite_in_substrate, self.substrate)
 
             if self._correct_ester_hydrolysis():
                 return True
 
-            if self._correct_acetal_hydrolysis():
-                return True
-
-            if self._correct_thio_phosphate_hydrolysis("P(=O)", "phosphate"):
+            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor("P(=O)", "phosphate"):
                 return True
         
-            if self._correct_thio_phosphate_hydrolysis("P(=S)", "thiophosphate"):
+            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor("P(=S)", "thiophosphate"):
                 return True
 
-            if self._correct_sulfur_derivatives_hydrolysis():
+            if self._correct_hydrolysis_of_esters_of_inorganic_acids_sulfur():
                 return True
 
-            if self._correct_piperazine_ring_hydroysis():
+            if self._correct_piperazine_ring_hydrolysis():
+                return True
+
+            if self._correct_acetal_hydrolysis():
                 return True
 
             return True
