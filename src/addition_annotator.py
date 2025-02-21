@@ -240,7 +240,7 @@ class AdditionAnnotator(BaseAnnotator):
                                         ]
                                     ]
                                     self.reaction_type = (
-                                        "additon (glutathione conjugation)"
+                                        "addition (glutathione conjugation)"
                                     )
                                     return True
 
