@@ -53,28 +53,35 @@ class EliminationAnnotator(BaseAnnotator):
             return False
 
         ester_pattern = MolFromSmarts("[*][C](=O)[O][*]")
-        if not any(
-            som in self.substrate.GetSubstructMatch(ester_pattern) for som in self.soms
-        ):
+        matches = self.substrate.GetSubstructMatches(ester_pattern)
+        match_index = -1
+        for i, match in enumerate(matches):
+            if any(
+                som in match for som in self.soms
+            ):
+                match_index = i
+                break
+
+        if match_index == -1:
+            return False
+        else:
+            corrected_soms = [
+                atom.GetIdx()
+                for atom in self.substrate.GetAtoms()
+                if atom.GetIdx() in matches[match_index]
+                and atom.GetAtomicNum() == 6
+                and self._has_single_and_double_bonded_oxygen_neighbors(atom)
+            ]
+            if corrected_soms:
+                self.soms = corrected_soms
+                self.reaction_type = "elimination (ester hydrolysis)"
+                log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
+                return True
             return False
 
-        corrected_soms = [
-            atom.GetIdx()
-            for atom in self.substrate.GetAtoms()
-            if atom.GetIdx() in self.substrate.GetSubstructMatch(ester_pattern)
-            and atom.GetAtomicNum() == 6
-            and self._has_single_and_double_bonded_oxygen(atom)
-        ]
-        if corrected_soms:
-            self.soms = corrected_soms
-            self.reaction_type = "elimination (ester hydrolysis)"
-            log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
-            return True
-        return False
-
-    def _correct_phosphate_hydrolysis(self) -> bool:
-        """Correct SoMs for phosphate hydrolysis."""
-        phosphate_derivate_pattern = MolFromSmarts("P(=O)")
+    def _correct_thio_phosphate_hydrolysis(self, smarts, type) -> bool:
+        """Correct SoMs for phosphate or thiophosphate hydrolysis."""
+        phosphate_derivate_pattern = MolFromSmarts(smarts)
 
         if not self.substrate.GetSubstructMatch(phosphate_derivate_pattern):
             return False
@@ -83,10 +90,10 @@ class EliminationAnnotator(BaseAnnotator):
         if (
             som_atom.GetSymbol() == "P"
         ):  # if the som is a phosphore atom, leave it as it is
-            self.reaction_type = "elimination (phosphate-derivative hydrolysis)"
+            self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
             log(
                 self.logger_path,
-                "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+                f"(Thio)phosphate-derivative hydrolysis detected. Left SoM as is.",
             )
             return True
         for neighbor in som_atom.GetNeighbors():
@@ -95,10 +102,10 @@ class EliminationAnnotator(BaseAnnotator):
                 # we have the case where a phosphore hydrolysis took place,
                 # and the metabolite does **not** contain the phosphate functional group anymore
                 self.soms = [neighbor.GetIdx()]
-                self.reaction_type = "elimination (phosphate-derivative hydrolysis)"
+                self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
                 log(
                     self.logger_path,
-                    "Phosphate-derivative hydrolysis detected. Corrected SoMs.",
+                    f"(Thio)phosphate-derivative hydrolysis detected. Corrected SoM.",
                 )
                 return True
         return False
@@ -164,31 +171,32 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
         ]
 
-    def _general_case_elimination(self, unmatched_atoms, target, mcs):
+    def _general_case_elimination(self, unmatched_atoms, substrate, mcs):
         """Identify SoMs in the elimination case based on unmatched
         atoms."""
         for atom in unmatched_atoms:  # iterate over unmatched atoms
-            for (
-                neighbor
-            ) in atom.GetNeighbors():  # iterate over neighbors of the unmatched atom
-                if neighbor.GetIdx() in target.GetSubstructMatch(
+            for neighbor in atom.GetNeighbors():  # iterate over neighbors of the unmatched atom
+                if neighbor.GetIdx() in substrate.GetSubstructMatch(
                     mcs.queryMol
                 ):  # if the neighbor is in the MCS...
-                    if (
-                        atom.GetAtomicNum() != 6
-                    ):  # ... and the unmatched atom is not a carbon atom...
-                        self.soms.append(
-                            neighbor.GetIdx()
-                        )  # ...add the neighbor to the SoMs
-                    else:  # if the unmatched atom is a carbon atom...
+                    if atom.GetAtomicNum() == 6:  # ...and the unmatched atom is a carbon atom...
                         self.soms.append(
                             atom.GetIdx()
-                        )  # ...add the unmatched atom to the SoMs
-                    self.reaction_type = "elimination (general)"
+                        )  # ...add the unmatched atom to the SoMs (TYPE 1)
+                        self.reaction_type = "elimination (general - C)"
+                    else:  # ...and the unmatched atom is NOT a carbon atom...
+                        self.soms.append(
+                            neighbor.GetIdx()
+                        )  # ...add the neighbor to the SoMs (TYPE 2)
+                        self.reaction_type = "elimination (general - !C)"
 
-    def _has_single_and_double_bonded_oxygen(self, atom) -> bool:
-        """Check if an atom has both single and double bonded oxygen
-        neighbors."""
+        # TYPE 1: dealkylation, deacylation
+        # TYPE 2: also dealkylation and deacylation, but with the "leaving group" as recorded metabolite (rare),
+        #         dehalogenation, reduction at heteroatom (nitro, sulfoxide etc.),
+        #         reduction at SP3 carbon (alcohol to alkane)
+
+    def _has_single_and_double_bonded_oxygen_neighbors(self, atom) -> bool:
+        """Check if an atom has both a single and a double bonded oxygen neighbors."""
         neighbor_bonds = [
             neighbor.GetSymbol()
             + str(get_bond_order(self.substrate, atom.GetIdx(), neighbor.GetIdx()))
@@ -225,7 +233,10 @@ class EliminationAnnotator(BaseAnnotator):
             if self._correct_acetal_hydrolysis():
                 return True
 
-            if self._correct_phosphate_hydrolysis():
+            if self._correct_thio_phosphate_hydrolysis("P(=O)", "phosphate"):
+                return True
+        
+            if self._correct_thio_phosphate_hydrolysis("P(=S)", "thiophosphate"):
                 return True
 
             if self._correct_sulfur_derivatives_hydrolysis():
