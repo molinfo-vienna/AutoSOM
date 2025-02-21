@@ -10,8 +10,7 @@ sulfur-derivatives hydrolysis, and piperazine ring opening.
 """
 
 from networkx import isomorphism
-
-from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
+from rdkit.Chem import Mol, MolFromSmarts
 
 from .base_annotator import BaseAnnotator
 from .utils import get_bond_order, log, mol_to_graph
@@ -58,30 +57,30 @@ class EliminationAnnotator(BaseAnnotator):
         matches = self.substrate.GetSubstructMatches(ester_pattern)
         match_index = -1
         for i, match in enumerate(matches):
-            if any(
-                som in match for som in self.soms
-            ):
+            if any(som in match for som in self.soms):
                 match_index = i
                 break
 
         if match_index == -1:
             return False
-        else:
-            corrected_soms = [
-                atom.GetIdx()
-                for atom in self.substrate.GetAtoms()
-                if atom.GetIdx() in matches[match_index]
-                and atom.GetAtomicNum() == 6
-                and self._has_single_and_double_bonded_oxygen_neighbors(atom)
-            ]
-            if corrected_soms:
-                self.soms = corrected_soms
-                self.reaction_type = "elimination (ester hydrolysis)"
-                log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
-                return True
-            return False
 
-    def _correct_hydrolysis_of_esters_of_inorganic_acids_phosphor(self, smarts, type) -> bool:
+        corrected_soms = [
+            atom.GetIdx()
+            for atom in self.substrate.GetAtoms()
+            if atom.GetIdx() in matches[match_index]
+            and atom.GetAtomicNum() == 6
+            and self._has_single_and_double_bonded_oxygen_neighbors(atom)
+        ]
+        if corrected_soms:
+            self.soms = corrected_soms
+            self.reaction_type = "elimination (ester hydrolysis)"
+            log(self.logger_path, "Ester hydrolysis detected. Corrected SoMs.")
+            return True
+        return False
+
+    def _correct_hydrolysis_of_esters_of_inorganic_acids_phosphor(
+        self, smarts, reaction_type
+    ) -> bool:
         """Correct SoMs for phosphate or thiophosphate hydrolysis."""
 
         if not self.substrate.GetSubstructMatch(MolFromSmarts(smarts)):
@@ -91,10 +90,10 @@ class EliminationAnnotator(BaseAnnotator):
         if (
             som_atom.GetSymbol() == "P"
         ):  # if the som is a phosphore atom, leave it as it is
-            self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
+            self.reaction_type = f"elimination ({reaction_type}-derivative hydrolysis)"
             log(
                 self.logger_path,
-                f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. No action needed.",
+                "Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. No action needed.",
             )
             return True
         for neighbor in som_atom.GetNeighbors():
@@ -103,10 +102,10 @@ class EliminationAnnotator(BaseAnnotator):
                 # we have the case where a phosphore hydrolysis took place,
                 # and the metabolite does **not** contain the phosphate functional group anymore
                 self.soms = [neighbor.GetIdx()]
-                self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
+                self.reaction_type = f"elimination ({reaction_type}-derivative hydrolysis)"
                 log(
                     self.logger_path,
-                    f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
+                    "Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
                 )
                 return True
             for neighbor_bis in neighbor.GetNeighbors():
@@ -119,7 +118,7 @@ class EliminationAnnotator(BaseAnnotator):
                     self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
                     log(
                         self.logger_path,
-                        f"Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
+                        "Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
                     )
                     return True
         return False
@@ -149,7 +148,10 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetSymbol() == "S"
         ]
         self.reaction_type = "elimination (sulfur-derivative hydrolysis)"
-        log(self.logger_path, "Hydrolysis of an ester of an inorganic (sulfur-based) acid detected. Corrected SoMs.")
+        log(
+            self.logger_path,
+            "Hydrolysis of an ester of an inorganic (sulfur-based) acid detected. Corrected SoMs.",
+        )
         return True
 
     def _correct_piperazine_ring_hydrolysis(self) -> bool:
@@ -185,9 +187,13 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
         ]
 
-    def _general_case_elimination(self, graph_matching_metabolite_in_substrate, substrate):
+    def _general_case_elimination(
+        self, graph_matching_metabolite_in_substrate, substrate
+    ):
         soms_lists = []
-        for matching in graph_matching_metabolite_in_substrate.subgraph_isomorphisms_iter():
+        for (
+            matching
+        ) in graph_matching_metabolite_in_substrate.subgraph_isomorphisms_iter():
             soms = []
             unmatched_atoms = [
                 atom
@@ -196,22 +202,34 @@ class EliminationAnnotator(BaseAnnotator):
             ]
             for atom in unmatched_atoms:
                 for neighbor in atom.GetNeighbors():
-                    if neighbor.GetIdx() in matching.keys(): # if the neighbor is in the mapping...
-                        if atom.GetAtomicNum() == 6:  # ...and the unmatched atom is a carbon atom...
-                            soms.append(atom.GetIdx())  # ...add the unmatched atom to the SoMs (TYPE 1)
+                    if (
+                        neighbor.GetIdx() in matching.keys()
+                    ):  # if the neighbor is in the mapping...
+                        if (
+                            atom.GetAtomicNum() == 6
+                        ):  # ...and the unmatched atom is a carbon atom...
+                            soms.append(
+                                atom.GetIdx()
+                            )  # ...add the unmatched atom to the SoMs (TYPE 1)
                             self.reaction_type = "elimination (general - type 1)"
                         else:  # ...and the unmatched atom is NOT a carbon atom...
-                            soms.append(neighbor.GetIdx())  # ...add the neighbor to the SoMs (TYPE 2)
+                            soms.append(
+                                neighbor.GetIdx()
+                            )  # ...add the neighbor to the SoMs (TYPE 2)
                             self.reaction_type = "elimination (general - type 2)"
             soms_lists.append(soms)
 
         if len(soms_lists) > 0:
-            log(self.logger_path, "Multiple options for general elimination detected; choosing the one with the least SoMs.")
+            log(
+                self.logger_path,
+                "Multiple options for general elimination detected; choosing the one with the least SoMs.",
+            )
             self.soms = min(soms_lists, key=len)
 
         # TYPE 1: dealkylation, deacylation
-        # TYPE 2: also dealkylation and deacylation, but with the "leaving group" as recorded metabolite (rare),
-        #         dehalogenation, reduction at heteroatom (nitro, sulfoxide etc.),
+        # TYPE 2: also dealkylation and deacylation, but with the "leaving group"
+        #         as recorded metabolite (rare), dehalogenation,
+        #         reduction at heteroatom (nitro, sulfoxide etc.),
         #         reduction at SP3 carbon (alcohol to alkane)
 
     def _has_single_and_double_bonded_oxygen_neighbors(self, atom) -> bool:
@@ -250,15 +268,21 @@ class EliminationAnnotator(BaseAnnotator):
                 node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
             )
 
-            self._general_case_elimination(graph_matching_metabolite_in_substrate, self.substrate)
+            self._general_case_elimination(
+                graph_matching_metabolite_in_substrate, self.substrate
+            )
 
             if self._correct_ester_hydrolysis():
                 return True
 
-            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor("P(=O)", "phosphate"):
+            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor(
+                "P(=O)", "phosphate"
+            ):
                 return True
-        
-            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor("P(=S)", "thiophosphate"):
+
+            if self._correct_hydrolysis_of_esters_of_inorganic_acids_phosphor(
+                "P(=S)", "thiophosphate"
+            ):
                 return True
 
             if self._correct_hydrolysis_of_esters_of_inorganic_acids_sulfur():

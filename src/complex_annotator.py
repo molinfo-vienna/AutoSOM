@@ -110,37 +110,44 @@ class ComplexAnnotator(BaseAnnotator):
         )
         log(self.logger_path, "Oxacyclopropane hydrolysis detected. Corrected SoMs.")
         return bool(self.soms)
-    
+
     def _correct_lactone_hydrolysis(self) -> bool:
         """Correct SoMs for lactone hydrolysis reactions."""
-
         # Check that the metabolite has exactly one ring less than the substrate
         if not (
             self.metabolite.GetRingInfo().NumRings()
             == self.substrate.GetRingInfo().NumRings() - 1
         ):
             return False
-        
+
         # Check that the SOM that was already found by the general procedure is just one
         if len(self.soms) != 1:
             return False
-        
+
         # Check that the SOM is part of a lactone
         general_lactone_smarts_pattern = "[C;R](=O)[O;R][C;R]"
         if not any(
-            som in self.substrate.GetSubstructMatch(MolFromSmarts(general_lactone_smarts_pattern)) for som in self.soms
+            som
+            in self.substrate.GetSubstructMatch(
+                MolFromSmarts(general_lactone_smarts_pattern)
+            )
+            for som in self.soms
         ):
             return False
-        
-        # If all the previous conditions are met, then cahnge the SOM to the carbon atom of the lactone
+
+        # If all the previous conditions are met,
+        # change SOM to the carbon atom of the lactone
         atom = self.substrate.GetAtomWithIdx(self.soms[0])
         # Check that the atom that was found in the sp3 oxygen of the lactone
         if atom.GetSymbol() == "O":
             for neighbor in atom.GetNeighbors():
-                if neighbor.GetSymbol() == "C" and str(neighbor.GetHybridization()) == "SP2":
+                if (
+                    neighbor.GetSymbol() == "C"
+                    and str(neighbor.GetHybridization()) == "SP2"
+                ):
                     self.soms = [neighbor.GetIdx()]
                     break
-        
+
             self.reaction_type = (
                 "complex (maximum common subgraph matching - lactone hydrolysis)"
             )
@@ -250,14 +257,18 @@ class ComplexAnnotator(BaseAnnotator):
             self.soms = [
                 atom_id_s
                 for atom_id_s, atom_id_m in self.mapping.items()
-                if (self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
-                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs())
-                or (self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
-                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge())
+                if (
+                    self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
+                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
+                )
+                or (
+                    self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
+                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge()
+                )
             ]
             return True
 
-        elif metabolite_in_substrate_flag:
+        if metabolite_in_substrate_flag:
             log(
                 self.logger_path,
                 "Subgraph isomorphism matching found!",
@@ -269,7 +280,7 @@ class ComplexAnnotator(BaseAnnotator):
             self.mapping = graph_matching_metabolite_in_substrate.mapping
             already_matched_metabolite_atom_indices = set(self.mapping.values())
 
-        elif substrate_in_metabolite_flag:    
+        if substrate_in_metabolite_flag:
             log(
                 self.logger_path,
                 "Subgraph isomorphism matching found!",
@@ -379,7 +390,7 @@ class ComplexAnnotator(BaseAnnotator):
 
         if self._correct_oxacyclopropane_hydrolysis():
             return True
-        
+
         if self._correct_lactone_hydrolysis():
             return True
 
