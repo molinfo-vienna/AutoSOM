@@ -207,8 +207,8 @@ class BaseAnnotator:
 
         if self.substrate is None:
             log(self.logger_path, "Substrate standardization failed.")
-            return True
+            return False
         if self.metabolite is None:
             log(self.logger_path, "Metabolite standardization failed.")
-            return True
-        return False
+            return False
+        return True
