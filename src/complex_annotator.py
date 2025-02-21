@@ -10,89 +10,89 @@ from .utils import get_neighbor_atomic_nums, log, mol_to_graph
 class ComplexAnnotator(BaseAnnotator):
     """Annotate SoMs for complex reactions."""
 
-    def _correct_alkyl_chain_deletion(self) -> bool:
-        """Correct SoMs for the deletion of one or more carbon atoms from an
-        alkyl chain."""
-        # Compare carbon counts
-        substrate_carbon_count = sum(
-            1 for atom in self.substrate.GetAtoms() if atom.GetSymbol() == "C"
-        )
-        metabolite_carbon_count = sum(
-            1 for atom in self.metabolite.GetAtoms() if atom.GetSymbol() == "C"
-        )
+    # def _correct_alkyl_chain_deletion(self) -> bool:
+    #     """Correct SoMs for the deletion of one or more carbon atoms from an
+    #     alkyl chain."""
+    #     # Compare carbon counts
+    #     substrate_carbon_count = sum(
+    #         1 for atom in self.substrate.GetAtoms() if atom.GetSymbol() == "C"
+    #     )
+    #     metabolite_carbon_count = sum(
+    #         1 for atom in self.metabolite.GetAtoms() if atom.GetSymbol() == "C"
+    #     )
 
-        # Compute carbon loss
-        carbon_loss = substrate_carbon_count - metabolite_carbon_count
-        if carbon_loss < 1:
-            return False
+    #     # Compute carbon loss
+    #     carbon_loss = substrate_carbon_count - metabolite_carbon_count
+    #     if carbon_loss < 1:
+    #         return False
 
-        # Find the MCS
-        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
-        mcs_mol = MolFromSmarts(mcs.smartsString)
+    #     # Find the MCS
+    #     self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
+    #     mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
+    #     mcs_mol = MolFromSmarts(mcs.smartsString)
 
-        if not mcs_mol:
-            return False
+    #     if not mcs_mol:
+    #         return False
 
-        # Map atoms from substrate to metabolite using substructure match
-        substrate_atoms = set(range(self.substrate.GetNumHeavyAtoms()))
-        mcs_match_substrate_atoms = set(self.substrate.GetSubstructMatch(mcs_mol))
-        deleted_atoms = substrate_atoms - mcs_match_substrate_atoms
+    #     # Map atoms from substrate to metabolite using substructure match
+    #     substrate_atoms = set(range(self.substrate.GetNumHeavyAtoms()))
+    #     mcs_match_substrate_atoms = set(self.substrate.GetSubstructMatch(mcs_mol))
+    #     deleted_atoms = substrate_atoms - mcs_match_substrate_atoms
 
-        # Extract deleted carbon fragment
-        deleted_carbons = []
-        for atom_idx in deleted_atoms:
-            atom = self.substrate.GetAtomWithIdx(atom_idx)
-            if atom.GetSymbol() == "C":
-                deleted_carbons.append(atom_idx)
+    #     # Extract deleted carbon fragment
+    #     deleted_carbons = []
+    #     for atom_idx in deleted_atoms:
+    #         atom = self.substrate.GetAtomWithIdx(atom_idx)
+    #         if atom.GetSymbol() == "C":
+    #             deleted_carbons.append(atom_idx)
 
-        # If no carbon was deleted, return False
-        if len(deleted_carbons) < 1:
-            return False
+    #     # If no carbon was deleted, return False
+    #     if len(deleted_carbons) < 1:
+    #         return False
 
-        # Ensure the lost carbons formed a connected alkyl chain
-        visited = set()
+    #     # Ensure the lost carbons formed a connected alkyl chain
+    #     visited = set()
 
-        def dfs(atom_idx):
-            """Depth-First Search to explore connected deleted carbons."""
-            if atom_idx in visited:
-                return
-            visited.add(atom_idx)
-            for neighbor in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors():
-                if (
-                    neighbor.GetIdx() in deleted_carbons
-                    and neighbor.GetIdx() not in visited
-                ):
-                    dfs(neighbor.GetIdx())
+    #     def dfs(atom_idx):
+    #         """Depth-First Search to explore connected deleted carbons."""
+    #         if atom_idx in visited:
+    #             return
+    #         visited.add(atom_idx)
+    #         for neighbor in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors():
+    #             if (
+    #                 neighbor.GetIdx() in deleted_carbons
+    #                 and neighbor.GetIdx() not in visited
+    #             ):
+    #                 dfs(neighbor.GetIdx())
 
-        # Start DFS from the first deleted carbon
-        dfs(deleted_carbons[0])
+    #     # Start DFS from the first deleted carbon
+    #     dfs(deleted_carbons[0])
 
-        # Check if all deleted carbons are part of one connected fragment
-        if visited != set(deleted_carbons):
-            return False
+    #     # Check if all deleted carbons are part of one connected fragment
+    #     if visited != set(deleted_carbons):
+    #         return False
 
-        # Check if the deleted fragment is an alkyl chain (only C and H neighbors)
-        for atom_idx in deleted_carbons:
-            neighbors = [
-                n.GetSymbol()
-                for n in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors()
-            ]
-            for n in neighbors:
-                if n not in {"C", "H"}:
-                    deleted_carbons.remove(atom_idx)
-                    break
+    #     # Check if the deleted fragment is an alkyl chain (only C and H neighbors)
+    #     for atom_idx in deleted_carbons:
+    #         neighbors = [
+    #             n.GetSymbol()
+    #             for n in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors()
+    #         ]
+    #         for n in neighbors:
+    #             if n not in {"C", "H"}:
+    #                 deleted_carbons.remove(atom_idx)
+    #                 break
 
-        # Update SoMs
-        self.soms = list(deleted_carbons)
-        self.reaction_type = (
-            "complex (maximum common subgraph matching - alkyl chain deletion)"
-        )
-        log(self.logger_path, "Alkyl chain deletion detected. Corrected SoMs.")
-        return bool(self.soms)
+    #     # Update SoMs
+    #     self.soms = list(deleted_carbons)
+    #     self.reaction_type = (
+    #         "complex (maximum common subgraph matching - alkyl chain deletion)"
+    #     )
+    #     log(self.logger_path, "Alkyl chain deletion detected. Corrected SoMs.")
+    #     return bool(self.soms)
 
     def _correct_oxacyclopropane_hydrolysis(self) -> bool:
-        """Corrects SoMs for oxacyclopropane hydrolysis reactions."""
+        """Correct SoMs for oxacyclopropane hydrolysis reactions."""
         smarts_oxacyclopropane = "C1OC1"
         matched_atoms = set(
             self.substrate.GetSubstructMatch(MolFromSmarts(smarts_oxacyclopropane))
@@ -110,9 +110,46 @@ class ComplexAnnotator(BaseAnnotator):
         )
         log(self.logger_path, "Oxacyclopropane hydrolysis detected. Corrected SoMs.")
         return bool(self.soms)
+    
+    def _correct_lactone_hydrolysis(self) -> bool:
+        """Correct SoMs for lactone hydrolysis reactions."""
 
-    def _correct_ring_opening(self) -> bool:
-        """Corrects SoMs for ring-opening reactions."""
+        # Check that the metabolite has exactly one ring less than the substrate
+        if not (
+            self.metabolite.GetRingInfo().NumRings()
+            == self.substrate.GetRingInfo().NumRings() - 1
+        ):
+            return False
+        
+        # Check that the SOM that was already found by the general procedure is just one
+        if len(self.soms) != 1:
+            return False
+        
+        # Check that the SOM is part of a lactone
+        general_lactone_smarts_pattern = "[C;R](=O)[O;R][C;R]"
+        if not any(
+            som in self.substrate.GetSubstructMatch(MolFromSmarts(general_lactone_smarts_pattern)) for som in self.soms
+        ):
+            return False
+        
+        # If all the previous conditions are met, then cahnge the SOM to the carbon atom of the lactone
+        atom = self.substrate.GetAtomWithIdx(self.soms[0])
+        # Check that the atom that was found in the sp3 oxygen of the lactone
+        if atom.GetSymbol() == "O":
+            for neighbor in atom.GetNeighbors():
+                if neighbor.GetSymbol() == "C" and str(neighbor.GetHybridization()) == "SP2":
+                    self.soms = [neighbor.GetIdx()]
+                    break
+        
+            self.reaction_type = (
+                "complex (maximum common subgraph matching - lactone hydrolysis)"
+            )
+            log(self.logger_path, "Lactone hydrolysis detected. Corrected SoMs.")
+            return True
+        return False
+
+    def _correct_other_heterocycle_opening(self) -> bool:
+        """Correct SoMs for ring-opening reactions."""
         if (
             self.metabolite.GetRingInfo().NumRings()
             != self.substrate.GetRingInfo().NumRings() - 1
@@ -140,7 +177,7 @@ class ComplexAnnotator(BaseAnnotator):
         return False
 
     def _correct_thiourea_reduction(self) -> bool:
-        """Corrects SoMs for thiourea reduction reactions."""
+        """Correct SoMs for thiourea reduction reactions."""
         if not self.substrate.HasSubstructMatch(MolFromSmarts("NC(=S)N")):
             return False
 
@@ -342,8 +379,11 @@ class ComplexAnnotator(BaseAnnotator):
 
         if self._correct_oxacyclopropane_hydrolysis():
             return True
+        
+        if self._correct_lactone_hydrolysis():
+            return True
 
-        if self._correct_ring_opening():
+        if self._correct_other_heterocycle_opening():
             return True
 
         # if self._correct_alkyl_chain_deletion():
