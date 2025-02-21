@@ -175,13 +175,52 @@ class ComplexAnnotator(BaseAnnotator):
         mol_graph_substrate = mol_to_graph(self.substrate)
         mol_graph_metabolite = mol_to_graph(self.metabolite)
 
+        metabolite_in_substrate_flag = False
+        substrate_in_metabolite_flag = False
+
         # Check if the substrate is a subgraph of the metabolite or vice versa
-        graph_matching = isomorphism.GraphMatcher(
+        graph_matching_metabolite_in_substrate = isomorphism.GraphMatcher(
             mol_graph_substrate,
             mol_graph_metabolite,
             node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
         )
-        if graph_matching.is_isomorphic():
+        graph_matching_substrate_in_metabolite = isomorphism.GraphMatcher(
+            mol_graph_metabolite,
+            mol_graph_substrate,
+            node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
+        )
+
+        if graph_matching_metabolite_in_substrate.is_isomorphic():
+            metabolite_in_substrate_flag = True
+        if graph_matching_substrate_in_metabolite.is_isomorphic():
+            substrate_in_metabolite_flag = True
+
+        if metabolite_in_substrate_flag and substrate_in_metabolite_flag:
+            log(
+                self.logger_path,
+                "Subgraph isomorphism matching found!",
+            )
+            log(
+                self.logger_path,
+                "Substrate and metabolite have complete mapping.",
+            )
+            self.mapping = graph_matching_metabolite_in_substrate.mapping
+            self.reaction_type = "complex (subgraph isomorphism matching)"
+
+            # Find the SOMs in the case of complete mapping
+            # An atom is a SoM if the number of bonded hydrogens is different
+            # or the formal charge is different
+            self.soms = [
+                atom_id_s
+                for atom_id_s, atom_id_m in self.mapping.items()
+                if (self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
+                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs())
+                or (self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
+                    != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge())
+            ]
+            return True
+
+        elif metabolite_in_substrate_flag:
             log(
                 self.logger_path,
                 "Subgraph isomorphism matching found!",
@@ -190,34 +229,31 @@ class ComplexAnnotator(BaseAnnotator):
                 self.logger_path,
                 "Metabolite is an isomorphic subgraph of the substrate.",
             )
-            self.mapping = graph_matching.mapping
+            self.mapping = graph_matching_metabolite_in_substrate.mapping
             already_matched_metabolite_atom_indices = set(self.mapping.values())
-        else:
-            graph_matching = isomorphism.GraphMatcher(
-                mol_graph_metabolite,
-                mol_graph_substrate,
-                node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
-            )
-            if graph_matching.is_isomorphic():
-                log(
-                    self.logger_path,
-                    "Subgraph isomorphism matching found!",
-                )
-                log(
-                    self.logger_path,
-                    "Substrate is an isomorphic subgraph of the metabolite.",
-                )
-                self.mapping = graph_matching.mapping
-                already_matched_metabolite_atom_indices = set(self.mapping.keys())
-            else:
-                log(self.logger_path, "No subgraph isomorphism matching found.")
-                return False
 
-        # Check if the mapping is complete
+        elif substrate_in_metabolite_flag:    
+            log(
+                self.logger_path,
+                "Subgraph isomorphism matching found!",
+            )
+            log(
+                self.logger_path,
+                "Substrate is an isomorphic subgraph of the metabolite.",
+            )
+            self.mapping = graph_matching_substrate_in_metabolite.mapping
+            already_matched_metabolite_atom_indices = set(self.mapping.keys())
+        else:
+            log(self.logger_path, "No subgraph isomorphism matching found.")
+            return False
+
+        # Find the soms in the case of incomplete mapping
+
+        # Step 1: Check that every atom in the substrate is matched to an atom in the metabolite
+        # If no atom in the metabolite is assigned to the atom in the substrate,
+        # assign the first available atom
         for atom_s in self.substrate.GetAtoms():
-            # Check that every atom in the substrate is matched to an atom in the metabolite
-            # If no atom in the metabolite is assigned to the atom in the substrate,
-            # assign the first available atom
+
             if self.mapping.get(atom_s.GetIdx()) is None:
                 try:
                     first_of_remaining_unmapped_ids = [
@@ -232,7 +268,7 @@ class ComplexAnnotator(BaseAnnotator):
                 except IndexError:
                     self.mapping[atom_s.GetIdx()] = -1
 
-        # Compute the SoMs by comparing the atoms in the substrate and the metabolite:
+        # Step 2: Compute the SoMs by comparing the atoms in the substrate and the metabolite:
         # if 1.) the degree,
         # or 2.) the neighbors (in terms of atomic number),
         # or 3.) the number of bonded hydrogens,
