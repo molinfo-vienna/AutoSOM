@@ -33,7 +33,23 @@ vis = [
   "ipywidgets"
 ]
 
+[tool.isort]
+profile = "black"
+
 [tool.pylint.messages-control]
 disable = [
-    "E0611",  # No name '...' in module '...' (import errors related to RDKit)
+  "c-extension-no-member",  # errors related to RDKit
+  "no-name-in-module",  # errors related to RDKit
+  "no-member",  # errors related to RDKit
+  "duplicate-code",
+  "too-many-return-statements",
+  "too-many-nested-blocks",
+  "too-many-instance-attributes",
+  "too-many-branches",
+  "line-too-long", # this is annoying for logging messages
+]
+
+[tool.pydocstyle]
+ignore = [
+  "D107",  # Missing docstring in __init__
 ]

@@ -1,7 +1,4 @@
-# pylint: disable=E1101
-
-"""This module provides various utility functions for processing and \
-analyzing molecular data using RDKit, pandas, and NetworkX."""
+"""Provides utility functions for processing and analyzing molecular data."""
 
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -16,8 +13,10 @@ def _find_symmetry_groups(mol: Mol):
     """Identify symmetry groups in a molecule.
 
     Args:
+
         mol (RDKit Mol)
     Returns:
+
         groups: a set of tuples containing the ids of the atoms belonging to one symmetry group
     """
     equivs = defaultdict(set)
@@ -47,9 +46,11 @@ def concat_lists(lst: List) -> List:
     """Concatenate a list of lists into a single list.
 
     Args:
+
         lst (List): List of lists to concatenate.
 
     Returns:
+
         List: Concatenated list.
     """
     return list(set(sum(lst, [])))
@@ -59,9 +60,11 @@ def count_elements(mol: Mol) -> dict[str, int]:
     """Count the number of atoms of each element in a molecule.
 
     Args:
+
         mol (RDKit Mol): Molecule to count the elements of.
 
     Returns:
+
         dict: Dictionary containing the counts of each element in the molecule.
     """
     element_counts: dict[str, int] = Counter()
@@ -76,10 +79,12 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> Optional[in
     """Get the order of the bond between two specified atoms.
 
     Args:
+
         molecule: RDKit molecule object.
         atom_idx1: Index of the first atom.
         atom_idx2: Index of the second atom.
     Returns:
+
         The bond order (1 for single, 2 for double, 3 for triple, 4 for aromatic).
         Returns None if no bond exists between the specified atoms.
     """
@@ -141,10 +146,12 @@ def log(path: str, message: str) -> None:
     """Log a message to a text file.
 
     Args:
+
         path (str): Path to the log file.
         message (str): Message to log.
 
     Returns:
+
         None
     """
     with open(path, "a+", encoding="utf-8") as f:
@@ -155,9 +162,11 @@ def mol_to_graph(mol: Mol) -> nx.Graph:
     """Convert an RDKit molecule to a NetworkX graph.
 
     Args:
+
         mol (RDKit Mol): Molecule to convert.
 
     Returns:
+
         mol_graph (NetworkX Graph): Graph representation of the molecule.
     """
     mol_graph = nx.Graph()
@@ -169,14 +178,16 @@ def mol_to_graph(mol: Mol) -> nx.Graph:
 
 
 def symmetrize_soms(mol: Mol, soms: List[int]) -> List[int]:
-    """Add all atoms in a symmetry group to the list of SoMs, \
+    """Add all atoms in a symmetry group to the list of SoMs,
     if any atom in the group is already a SoM.
 
     Args:
+
         mol (Mol): RDKit molecule
         soms (List[int]): list of atom indices of the already found SoMs
 
     Returns:
+
         List[int]: updated list of SoMs
     """
     symmetry_groups = _find_symmetry_groups(mol)

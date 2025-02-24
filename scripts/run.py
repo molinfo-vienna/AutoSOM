@@ -1,15 +1,15 @@
-"""This script predicts Sites of Metabolism (SoMs) for unseen data using pairs \
-of molecular structures (substrate/metabolite) provided in either InChI or SMILES format.
+"""Predicts Sites of Metabolism (SOMs) for unseen data. Uses pairs of molecular
+structures (substrate/metabolite) provided in SMILES format.
 
 The script performs the following steps:
 1. Parses command-line arguments to get input and output paths, input data type, and filter size.
 2. Reads the input data from a CSV file.
 3. Ensures necessary columns are present in the data.
 4. Converts molecular structures from SMILES to RDKit Mol objects.
-5. Curates the data and predicts SoMs for each reaction.
-6. Symmetrizes the predicted SoMs.
+5. Curates the data and predicts SOMs for each reaction.
+6. Symmetrizes the predicted SOMs.
 7. Outputs the annotated data to SDF files.
-8. Merges all SoMs from the same substrates and outputs the merged data to a single SDF file.
+8. Merges all SOMs from the same substrates and outputs the merged data to a single SDF file.
 
 Command-line arguments:
     -i, --inputPath: str, required
@@ -39,9 +39,13 @@ from rdkit.Chem import PandasTools  # type: ignore
 from rdkit.Chem import MolFromSmiles, MolToInchiKey
 from tqdm import tqdm
 
-from src.annotator import annotate_soms
-from src.utils import (check_and_collapse_substrate_id, concat_lists, log,
-                       symmetrize_soms)
+from src.autosom import annotate_soms
+from src.utils import (
+    check_and_collapse_substrate_id,
+    concat_lists,
+    log,
+    symmetrize_soms,
+)
 
 np.random.seed(seed=42)
 tqdm.pandas()
@@ -49,7 +53,7 @@ tqdm.pandas()
 
 if __name__ == "__main__":
     start = datetime.now()
-    parser = argparse.ArgumentParser("Predicting SoMs for unseen data.")
+    parser = argparse.ArgumentParser("Predicting SOMs for unseen data.")
 
     parser.add_argument(
         "-i",
@@ -104,14 +108,13 @@ if __name__ == "__main__":
 
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
-    # Predict SoMs
+    # Predict SOMs
+    params = (logger_path, args.filter_size, args.ester_hydrolysis)
     data[["soms", "annotation_rule"]] = data.progress_apply(
         lambda x: annotate_soms(
+            params,
             (x.substrate_mol, x.substrate_id),
             (x.metabolite_mol, x.metabolite_id),
-            logger_path,
-            filter_size=args.filter_size,
-            ester_hydrolysis=args.ester_hydrolysis,
         ),
         axis=1,
         result_type="expand",
@@ -171,6 +174,7 @@ if __name__ == "__main__":
     PandasTools.WriteSDF(
         df=data_merged,
         out=os.path.join(args.outputPath, "merged.sdf"),
+        idName="substrate_id",
         molColName="substrate_mol",
         properties=[column for column in data_merged.columns if "mol" not in column],
     )
