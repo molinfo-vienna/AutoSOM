@@ -152,20 +152,20 @@ class OxidativeDehalogenationAnnotator(BaseAnnotator):
 
             # The SoM is the neighbor of that halogen atom
             self.soms = [halogen_atom.GetNeighbors()[0].GetIdx()]
-            self.reaction_type = "oxidative dehalogenation"
+            self.reaction_type = "redox (oxidative dehalogenation)"
 
             # If the reaction produces an epoxide (instead of the typical alcohol),
             # find the other atom that is part of the epoxide and add it to the SoMs
             if self._is_in_epoxide(self.mapping[self.soms[0]]):
                 if self._correct_epoxide():
-                    self.reaction_type = "oxidative dehalogenation (epoxide)"
+                    self.reaction_type = "redox (oxidative dehalogenation epoxide)"
                     return True
 
             # If the reaction produces a quinone-like metabolite (instead of the typical alcohol),
             # find the other atom that is part of the quinone-like structure and add it to the SoMs
             if self._is_in_quinone(self.mapping[self.soms[0]]):
                 if self._correct_quinone_like_oxidation():
-                    self.reaction_type = "oxidative dehalogenation (quinone-like)"
+                    self.reaction_type = "redox (oxidative dehalogenation quinone)"
                     return True
 
             return True
