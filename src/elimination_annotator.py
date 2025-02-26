@@ -181,6 +181,7 @@ class EliminationAnnotator(BaseAnnotator):
         return False
 
     def _general_case_elimination(self, graph_matching_metabolite_in_substrate):
+        """Annotate SoMs for general elimination reactions."""
         soms_lists = []
         for (
             matching
@@ -218,6 +219,7 @@ class EliminationAnnotator(BaseAnnotator):
 
         if len(soms_lists) == 0:
             log(self.logger_path, "General elimination matching failed.")
+            return False
         elif len(soms_lists) == 1:
             self.soms = soms_lists[0]
         else:
@@ -226,6 +228,7 @@ class EliminationAnnotator(BaseAnnotator):
                 "Multiple options for general elimination detected; choosing the one with the least SoMs.",
             )
             self.soms = min(soms_lists, key=len)
+        return True
 
         # TYPE 1: dealkylation, deacylation
         # TYPE 2: also dealkylation and deacylation, but with the "leaving group"
@@ -269,7 +272,10 @@ class EliminationAnnotator(BaseAnnotator):
                 node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
             )  # yields isomorphic mappings between the metabolite and subgraphs of the substrate
 
-            self._general_case_elimination(graph_matching_metabolite_in_substrate)
+            if not self._general_case_elimination(
+                graph_matching_metabolite_in_substrate
+            ):
+                return False
 
             if self._correct_ester_hydrolysis():
                 return True
@@ -294,6 +300,7 @@ class EliminationAnnotator(BaseAnnotator):
                 return True
 
             return True
+
         except (ValueError, KeyError, AttributeError) as e:
             log(self.logger_path, f"Elimination matching failed. Error: {e}")
             return False

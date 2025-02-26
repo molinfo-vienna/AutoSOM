@@ -10,6 +10,7 @@ as well as for two specific case: carnitine addition and glutathione conjugation
 
 from typing import Optional
 
+from networkx import isomorphism
 from rdkit.Chem import (
     FragmentOnBonds,
     GetMolFrags,
@@ -20,7 +21,7 @@ from rdkit.Chem import (
 )
 
 from .base_annotator import BaseAnnotator
-from .utils import log
+from .utils import log, mol_to_graph
 
 
 class AdditionAnnotator(BaseAnnotator):
@@ -36,7 +37,15 @@ class AdditionAnnotator(BaseAnnotator):
         ]
 
     def _correct_carnitine_addition(self) -> bool:
-        """Correct SoMs for the addition of carnitine to a carboxylic acid."""
+        """Correct SoMs for the addition of carnitine to a carboxylic acid.
+           The conjugation of carnitine to carboxylic acid is mediated by
+           the coenzyme A. Thus, the SOM here is not the SP3-hybridized oxygen
+           of the carboxylic acid, the carbon atom of the carboxylic acid.
+           Other amino acids undergo conjugation via CoA (glycine, cysteine, taurine etc.),
+           but they are not matched by the general addition scenario because in those cases,
+           the carboxylic acid reacts to an amide. These cases teherfore do not need to be
+           corrected by this pipeline, as they correctly handled later in the complex reaction pipeline.
+        """
         carnitine_pattern = MolFromSmarts("[N+](C)(C)(C)-C-C(O)C-C(=O)[O]")
 
         if (
@@ -45,14 +54,14 @@ class AdditionAnnotator(BaseAnnotator):
         ):
             return False
 
-        atom_id_in_substrate = self.mapping[self.soms[0]]
-        corrected_soms = [
-            self.substrate.GetAtomWithIdx(atom_id_in_substrate)
+        som = self.soms[0]
+        corrected_som = [
+            self.substrate.GetAtomWithIdx(som)
             .GetNeighbors()[0]
             .GetIdx()
-        ]
-        if corrected_soms:
-            self.soms = corrected_soms
+        ] # We can take the first neighbor of the SOM atom in the substrate, because it is the only neighbor.
+        if corrected_som:
+            self.soms = corrected_som
             self.reaction_type = "addition (carnitine)"
             log(self.logger_path, "Carnitine addition detected. Corrected SoMs.")
             return True
@@ -125,9 +134,16 @@ class AdditionAnnotator(BaseAnnotator):
                 return fragment
         return None
 
-    def _general_case_addition(self, unmatched_atoms, query, mcs):
-        """Identify SoMs in the addition case based on unmatched
-        atoms."""
+    def _general_case_addition(self):
+        """Annotate SoMs for addition elimination reactions."""
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+        mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
+
+        if not self._map_atoms(self.substrate, self.metabolite, mcs):
+            return False
+
+        unmatched_atoms = self._find_unmatched_atoms(self.metabolite, mcs)
+
         for atom in unmatched_atoms:  # iterate over unmatched atoms
             for (
                 neighbor
@@ -136,14 +152,20 @@ class AdditionAnnotator(BaseAnnotator):
                     not neighbor.GetIdx() in self.mapping
                 ):  # if the neighbor is not in the mapping, meaning it is not in the MCS...
                     continue  # ...skip the neighbor
-                mapped_idx = self.mapping[
-                    neighbor.GetIdx()
-                ]  # get the index of the neighbor in the query molecule (substrate)
-                if mapped_idx in query.GetSubstructMatch(
-                    mcs.queryMol
-                ):  # if the neighbor is in the query molecule (substrate)...
-                    self.soms.append(mapped_idx)  # ...add the neighbor to the SoMs
+                    # We fomulate the condition as a negative affirmation to cover cases
+                    # where there is more than one addition site in the substrate.
+                    # This should not be the case in clean, single-step reactions,
+                    # but it is a possibility in badly curated data.
+                else:
+                    self.soms.append(
+                        self.mapping[neighbor.GetIdx()]
+                    )  # get the index of the neighbor in the MCS query molecule (substrate)
                     self.reaction_type = "addition (general)"
+
+        if len(self.soms) == 0:
+            log(self.logger_path, "General addition matching failed.")
+            return False
+        return True
 
     def _is_glutathione_conjugation(self) -> bool:
         """Check if the reaction is a glutathione conjugation."""
@@ -252,37 +274,35 @@ class AdditionAnnotator(BaseAnnotator):
         return False
 
     def handle_addition(self) -> bool:
-        """Annotate SoMs for addition reactions."""
-        log(self.logger_path, "Attempting addition matching.")
+        """Annotate SoMs for addition reactions.
 
-        # Check if the reaction is a glutathione conjugation
-        if self._is_glutathione_conjugation():
-            # if yes, try and find the SOM for glutathione conjugation
-            if self._handle_glutathione_conjugation():
-                return True
-
-        # Check if the substrate is a substructure of the metabolite
-        if not self.metabolite.HasSubstructMatch(self.substrate):
-            return False
-
-        log(
-            self.logger_path,
-            "Susbtrate is a substructure of the metabolite.",
-        )
-
+        Returns:
+            bool: True if an addition reaction is found, False otherwise.
+        """
         try:
-            self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
-            mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
-            if not self._map_atoms(self.substrate, self.metabolite, mcs):
-                return False
-            unmatched_atoms = self._find_unmatched_atoms(self.metabolite, mcs)
 
-            self._general_case_addition(unmatched_atoms, self.substrate, mcs)
+            log(self.logger_path, "Attempting addition matching.")
+
+            if not self.metabolite.HasSubstructMatch(self.substrate):
+                return False
+
+            log(
+                self.logger_path,
+                "Susbtrate is a substructure of the metabolite.",
+            )
+
+            if self._is_glutathione_conjugation():
+                if self._handle_glutathione_conjugation():
+                    return True
+
+            if not self._general_case_addition():
+                return False
 
             if self._correct_carnitine_addition():
                 return True
 
             return True
+
         except (ValueError, KeyError, AttributeError) as e:
             log(self.logger_path, f"Addition matching failed. Error: {e}")
             return False
