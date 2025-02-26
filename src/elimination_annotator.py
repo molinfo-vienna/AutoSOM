@@ -53,7 +53,7 @@ class EliminationAnnotator(BaseAnnotator):
         if not self.ester_hydrolysis_flag:
             return False
 
-        ester_pattern = MolFromSmarts("[*][C](=O)[O][*]")
+        ester_pattern = MolFromSmarts("[*][C](=O)[O,S][*]")
         matches = self.substrate.GetSubstructMatches(ester_pattern)
         match_index = -1
         for i, match in enumerate(matches):
