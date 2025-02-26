@@ -8,7 +8,6 @@ from .addition_annotator import AdditionAnnotator
 from .base_annotator import BaseAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
-from .oxidative_dehalogenation_annotator import OxidativeDehalogenationAnnotator
 from .redox_annotator import RedoxAnnotator
 
 
@@ -32,15 +31,12 @@ def annotate_soms(
     annotator.remove_hydrogens()
     annotator.initialize_atom_notes()
 
-    oxidative_dehalogation_annotator = OxidativeDehalogenationAnnotator(
-        params, substrate_data, metabolite_data
-    )
     addition_annotator = AdditionAnnotator(params, substrate_data, metabolite_data)
+    complex_annotator = ComplexAnnotator(params, substrate_data, metabolite_data)
     elimination_annotator = EliminationAnnotator(
         params, substrate_data, metabolite_data
     )
     redox_annotator = RedoxAnnotator(params, substrate_data, metabolite_data)
-    complex_annotator = ComplexAnnotator(params, substrate_data, metabolite_data)
 
     weight_ratio = annotator.compute_weight_ratio()
 
@@ -60,13 +56,11 @@ def annotate_soms(
         return annotator.log_and_return()
 
     if weight_ratio == 0:
-        if oxidative_dehalogation_annotator.is_oxidative_dehalogenation():
-            if oxidative_dehalogation_annotator.handle_oxidative_dehalogenation():
-                return oxidative_dehalogation_annotator.log_and_return()
-
         if redox_annotator.handle_redox_reaction():
             return redox_annotator.log_and_return()
 
+    # This last category is to catch all cases that failed previously.
+    # It is less specific and has a higher error rate.
     if complex_annotator.handle_complex_reaction():
         return complex_annotator.log_and_return()
 
