@@ -180,21 +180,25 @@ class EliminationAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _general_case_elimination(
-        self, graph_matching_metabolite_in_substrate, substrate
-    ):
+    def _general_case_elimination(self, graph_matching_metabolite_in_substrate):
         soms_lists = []
         for (
             matching
         ) in graph_matching_metabolite_in_substrate.subgraph_isomorphisms_iter():
+            # The matching is a dictionary where the keys are the atom indices of the substrae
+            # and the values are the atom indices of the metabolite.
             soms = []
             unmatched_atoms = [
                 atom
-                for atom in substrate.GetAtoms()
+                for atom in self.substrate.GetAtoms()
                 if atom.GetIdx() not in matching.keys()
             ]
-            for atom in unmatched_atoms:
-                for neighbor in atom.GetNeighbors():
+            for atom in unmatched_atoms:  # iterate over unmatched atoms
+                for (
+                    neighbor
+                ) in (
+                    atom.GetNeighbors()
+                ):  # iterate over neighbors of the unmatched atom
                     if (
                         neighbor.GetIdx() in matching.keys()
                     ):  # if the neighbor is in the mapping...
@@ -212,7 +216,11 @@ class EliminationAnnotator(BaseAnnotator):
                             self.reaction_type = "elimination (general - type 2)"
             soms_lists.append(soms)
 
-        if len(soms_lists) > 0:
+        if len(soms_lists) == 0:
+            log(self.logger_path, "General elimination matching failed.")
+        elif len(soms_lists) == 1:
+            self.soms = soms_lists[0]
+        else:
             log(
                 self.logger_path,
                 "Multiple options for general elimination detected; choosing the one with the least SoMs.",
@@ -238,7 +246,7 @@ class EliminationAnnotator(BaseAnnotator):
         """Annotate SoMs for elimination reactions.
 
         Returns:
-            bool: True if a elimination reaction is found, False otherwise.
+            bool: True if an elimination reaction is found, False otherwise.
         """
         log(self.logger_path, "Attempting elimination matching.")
 
@@ -259,11 +267,9 @@ class EliminationAnnotator(BaseAnnotator):
                 mol_graph_substrate,
                 mol_graph_metabolite,
                 node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
-            )
+            )  # yields isomorphic mappings between the metabolite and subgraphs of the substrate
 
-            self._general_case_elimination(
-                graph_matching_metabolite_in_substrate, self.substrate
-            )
+            self._general_case_elimination(graph_matching_metabolite_in_substrate)
 
             if self._correct_ester_hydrolysis():
                 return True
