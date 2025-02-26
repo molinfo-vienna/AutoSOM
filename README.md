@@ -1,22 +1,22 @@
-**SOMAN**: A pipeline to automatically annotate the Sites of Metabolism (SoMs) from substrate-metabolite pairs. SoMs, also know as metabolic hotspots, are the atoms where metabolic reactions are initiated.
+**AutoSOM**: A pipeline to automatically annotate the Sites of Metabolism (SoMs) from substrate-metabolite pairs. SoMs, also know as metabolic hotspots, are the atoms where metabolic reactions are initiated.
 
 ### Installation
 
 Clone the repository and cd into the repository root:
 
-`git clone https://github.com/molinfo-vienna/SOMAN.git`
+`git clone https://github.com/molinfo-vienna/AutoSOM.git`
 
-`cd SOMAN`
+`cd AutoSOM`
 
 Create a conda environment with the required python version:
 
-`conda create --name soman-env python=3.11`
+`conda create --name autosom-env python=3.11`
 
 Activate the environment:
 
-`conda activate soman-env`
+`conda activate autosom-env`
 
-Install soman package:
+Install autosom package:
 
 `pip install -e .`
 
@@ -33,7 +33,7 @@ The `OUTPUT_PATH` is the path where the output (annotated) data as well as the l
 
 The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running some MCS matching operations. The default value is 45. The lower the value, the faster the algorithm runs, but the more reactions are filtered out.
 
-The `-e` flag controls the strategy for annotating ester hydrolyses. Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom). If the -e argument is set, the annotation is on the carbonyl C-atom, which is consistent with the MetaQSAR data set.
+The `-e` flag controls the strategy for annotating ester hydrolyses. Per default, AutoSOM annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom). If the -e argument is set, the annotation is on the carbonyl C-atom, which is consistent with the MetaQSAR data set.
 
 
 ### Sandbox
