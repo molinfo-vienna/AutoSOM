@@ -10,7 +10,7 @@ sulfur-derivatives hydrolysis, and piperazine ring opening.
 """
 
 from networkx import isomorphism
-from rdkit.Chem import Mol, MolFromSmarts
+from rdkit.Chem import MolFromSmarts
 
 from .base_annotator import BaseAnnotator
 from .utils import get_bond_order, log, mol_to_graph
@@ -102,7 +102,9 @@ class EliminationAnnotator(BaseAnnotator):
                 # we have the case where a phosphore hydrolysis took place,
                 # and the metabolite does **not** contain the phosphate functional group anymore
                 self.soms = [neighbor.GetIdx()]
-                self.reaction_type = f"elimination ({reaction_type}-derivative hydrolysis)"
+                self.reaction_type = (
+                    f"elimination ({reaction_type}-derivative hydrolysis)"
+                )
                 log(
                     self.logger_path,
                     "Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
@@ -177,15 +179,6 @@ class EliminationAnnotator(BaseAnnotator):
             log(self.logger_path, "Piperazine ring opening detected. Corrected SoMs.")
             return True
         return False
-
-    @classmethod
-    def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
-        """Find unmatched atoms between the target and the query molecule."""
-        return [
-            atom
-            for atom in target.GetAtoms()
-            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
-        ]
 
     def _general_case_elimination(
         self, graph_matching_metabolite_in_substrate, substrate
