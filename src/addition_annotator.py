@@ -10,7 +10,6 @@ as well as for two specific case: carnitine addition and glutathione conjugation
 
 from typing import Optional
 
-from networkx import isomorphism
 from rdkit.Chem import (
     FragmentOnBonds,
     GetMolFrags,
@@ -21,7 +20,7 @@ from rdkit.Chem import (
 )
 
 from .base_annotator import BaseAnnotator
-from .utils import log, mol_to_graph
+from .utils import log
 
 
 class AdditionAnnotator(BaseAnnotator):
@@ -38,13 +37,13 @@ class AdditionAnnotator(BaseAnnotator):
 
     def _correct_carnitine_addition(self) -> bool:
         """Correct SoMs for the addition of carnitine to a carboxylic acid.
-           The conjugation of carnitine to carboxylic acid is mediated by
-           the coenzyme A. Thus, the SOM here is not the SP3-hybridized oxygen
-           of the carboxylic acid, the carbon atom of the carboxylic acid.
-           Other amino acids undergo conjugation via CoA (glycine, cysteine, taurine etc.),
-           but they are not matched by the general addition scenario because in those cases,
-           the carboxylic acid reacts to an amide. These cases teherfore do not need to be
-           corrected by this pipeline, as they correctly handled later in the complex reaction pipeline.
+        The conjugation of carnitine to carboxylic acid is mediated by
+        the coenzyme A. Thus, the SOM here is not the SP3-hybridized oxygen
+        of the carboxylic acid, the carbon atom of the carboxylic acid.
+        Other amino acids undergo conjugation via CoA (glycine, cysteine, taurine etc.),
+        but they are not matched by the general addition scenario because in those cases,
+        the carboxylic acid reacts to an amide. These cases teherfore do not need to be
+        corrected by this pipeline, as they correctly handled later in the complex reaction pipeline.
         """
         carnitine_pattern = MolFromSmarts("[N+](C)(C)(C)-C-C(O)C-C(=O)[O]")
 
@@ -56,10 +55,8 @@ class AdditionAnnotator(BaseAnnotator):
 
         som = self.soms[0]
         corrected_som = [
-            self.substrate.GetAtomWithIdx(som)
-            .GetNeighbors()[0]
-            .GetIdx()
-        ] # We can take the first neighbor of the SOM atom in the substrate, because it is the only neighbor.
+            self.substrate.GetAtomWithIdx(som).GetNeighbors()[0].GetIdx()
+        ]  # We can take the first neighbor of the SOM atom in the substrate, because it is the only neighbor.
         if corrected_som:
             self.soms = corrected_som
             self.reaction_type = "addition (carnitine)"
@@ -192,7 +189,7 @@ class AdditionAnnotator(BaseAnnotator):
             dict: A mapping between the atoms in the source
                   molecule and the atoms in the target molecule.
         """
-        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
         mcs = rdFMCS.FindMCS([source_mol, target_mol], self.mcs_params)
         if not mcs or not mcs.queryMol:
             return None
@@ -283,6 +280,10 @@ class AdditionAnnotator(BaseAnnotator):
 
             log(self.logger_path, "Attempting addition matching.")
 
+            if self._is_glutathione_conjugation():
+                if self._handle_glutathione_conjugation():
+                    return True
+
             if not self.metabolite.HasSubstructMatch(self.substrate):
                 return False
 
@@ -290,10 +291,6 @@ class AdditionAnnotator(BaseAnnotator):
                 self.logger_path,
                 "Susbtrate is a substructure of the metabolite.",
             )
-
-            if self._is_glutathione_conjugation():
-                if self._handle_glutathione_conjugation():
-                    return True
 
             if not self._general_case_addition():
                 return False
