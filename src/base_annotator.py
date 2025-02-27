@@ -79,14 +79,12 @@ class BaseAnnotator:
         self.mcs_params.BondCompareParameters.CompleteRingsOnly = True
         self.mcs_params.BondCompareParameters.MatchFusedRings = True
         self.mcs_params.BondCompareParameters.MatchFusedRingsStrict = True
-        self.mcs_params.BondCompareParameters.RingMatchesRingOnly = True
 
     def _reset_mcs_bond_compare_params(self):
         """Reset the MCS bond compare parameters to their default value."""
         self.mcs_params.BondCompareParameters.CompleteRingsOnly = False
         self.mcs_params.BondCompareParameters.MatchFusedRings = False
         self.mcs_params.BondCompareParameters.MatchFusedRingsStrict = False
-        self.mcs_params.BondCompareParameters.RingMatchesRingOnly = False
 
     def check_atom_types(self) -> bool:
         """Check if the molecules contain any invalid atoms."""
