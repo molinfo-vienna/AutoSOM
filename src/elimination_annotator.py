@@ -9,15 +9,23 @@ as well as for specific cases: ester hydrolysis, acetal hydrolysis, phosphate hy
 sulfur-derivatives hydrolysis, and piperazine ring opening.
 """
 
-from networkx import isomorphism
-from rdkit.Chem import MolFromSmarts
+from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
-from .utils import get_bond_order, log, mol_to_graph
+from .utils import get_bond_order, log
 
 
 class EliminationAnnotator(BaseAnnotator):
     """Annotate SoMs for elimination reactions."""
+
+    @classmethod
+    def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
+        """Find unmatched atoms between the target and the query molecule."""
+        return [
+            atom
+            for atom in target.GetAtoms()
+            if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
+        ]
 
     def _correct_acetal_hydrolysis(self) -> bool:
         """Correct SoMs for acetals."""
@@ -117,7 +125,9 @@ class EliminationAnnotator(BaseAnnotator):
                     # correctly by the algorithm, but the wrong side of the ester was annotated.
                     # We theerfore correct the SOM.
                     self.soms = [neighbor_bis.GetIdx()]
-                    self.reaction_type = f"elimination ({type}-derivative hydrolysis)"
+                    self.reaction_type = (
+                        f"elimination ({reaction_type}-derivative hydrolysis)"
+                    )
                     log(
                         self.logger_path,
                         "Hydrolysis of an ester of an inorganic (phosphore-based) acid detected. Corrected SoM.",
@@ -180,54 +190,38 @@ class EliminationAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _general_case_elimination(self, graph_matching_metabolite_in_substrate):
+    def _general_case_elimination(self):
         """Annotate SoMs for general elimination reactions."""
-        soms_lists = []
-        for (
-            matching
-        ) in graph_matching_metabolite_in_substrate.subgraph_isomorphisms_iter():
-            # The matching is a dictionary where the keys are the atom indices of the substrae
-            # and the values are the atom indices of the metabolite.
-            soms = []
-            unmatched_atoms = [
-                atom
-                for atom in self.substrate.GetAtoms()
-                if atom.GetIdx() not in matching.keys()
-            ]
-            for atom in unmatched_atoms:  # iterate over unmatched atoms
-                for (
-                    neighbor
-                ) in (
-                    atom.GetNeighbors()
-                ):  # iterate over neighbors of the unmatched atom
-                    if (
-                        neighbor.GetIdx() in matching.keys()
-                    ):  # if the neighbor is in the mapping...
-                        if (
-                            atom.GetAtomicNum() == 6
-                        ):  # ...and the unmatched atom is a carbon atom...
-                            soms.append(
-                                atom.GetIdx()
-                            )  # ...add the unmatched atom to the SoMs (TYPE 1)
-                            self.reaction_type = "elimination (general - type 1)"
-                        else:  # ...and the unmatched atom is NOT a carbon atom...
-                            soms.append(
-                                neighbor.GetIdx()
-                            )  # ...add the neighbor to the SoMs (TYPE 2)
-                            self.reaction_type = "elimination (general - type 2)"
-            soms_lists.append(soms)
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+        mcs = rdFMCS.FindMCS([self.metabolite, self.substrate], self.mcs_params)
 
-        if len(soms_lists) == 0:
-            log(self.logger_path, "General elimination matching failed.")
+        if not self._map_atoms(self.substrate, self.metabolite, mcs):
             return False
-        elif len(soms_lists) == 1:
-            self.soms = soms_lists[0]
-        else:
-            log(
-                self.logger_path,
-                "Multiple options for general elimination detected; choosing the one with the least SoMs.",
-            )
-            self.soms = min(soms_lists, key=len)
+
+        unmatched_atoms = self._find_unmatched_atoms(self.substrate, mcs)
+
+        for atom in unmatched_atoms:  # iterate over unmatched atoms
+            for (
+                neighbor
+            ) in atom.GetNeighbors():  # iterate over neighbors of the unmatched atom
+                if neighbor.GetIdx() in self.substrate.GetSubstructMatch(
+                    mcs.queryMol
+                ):  # if the neighbor is in the mapping...
+                    if (
+                        atom.GetAtomicNum() == 6
+                    ):  # ...and the unmatched atom is a carbon atom...
+                        self.soms.append(
+                            atom.GetIdx()
+                        )  # ...add the unmatched atom to the SoMs (TYPE 1)
+                        self.reaction_type = "elimination (general - type 1)"
+                    else:  # ...and the unmatched atom is NOT a carbon atom...
+                        self.soms.append(
+                            neighbor.GetIdx()
+                        )  # ...add the neighbor to the SoMs (TYPE 2)
+                        self.reaction_type = "elimination (general - type 2)"
+
+        if len(self.soms) == 0:
+            log(self.logger_path, "General elimination matching failed.")
         return True
 
         # TYPE 1: dealkylation, deacylation
@@ -263,18 +257,7 @@ class EliminationAnnotator(BaseAnnotator):
 
         try:
 
-            mol_graph_substrate = mol_to_graph(self.substrate)
-            mol_graph_metabolite = mol_to_graph(self.metabolite)
-
-            graph_matching_metabolite_in_substrate = isomorphism.GraphMatcher(
-                mol_graph_substrate,
-                mol_graph_metabolite,
-                node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
-            )  # yields isomorphic mappings between the metabolite and subgraphs of the substrate
-
-            if not self._general_case_elimination(
-                graph_matching_metabolite_in_substrate
-            ):
+            if not self._general_case_elimination():
                 return False
 
             if self._correct_ester_hydrolysis():
