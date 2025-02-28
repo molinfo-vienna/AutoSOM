@@ -48,10 +48,22 @@ def annotate_soms(
         if elimination_annotator.handle_elimination():
             return elimination_annotator.log_and_return()
 
-    # The next steps rely more heavily on MCS matching,
-    # which can take very long for large molecules,
-    # so we skip them if the substrate or metabolite is
-    # too large (filter_size parameter).
+    # The next steps perform MCS matching
+    # with a different set of parameters than was used
+    # for addition and elimination reactions.
+    # Specifically, MCS matching for redox reactions requires
+    # constraints on the ring membership:
+    #      BondCompareParameters.CompleteRingsOnly = True
+    #      BondCompareParameters.MatchFusedRings = True
+    #      BondCompareParameters.MatchFusedRingsStrict = True
+    # MCS matching for complex reactions requires
+    # comparing any types of bonds (rdFMCS.BondCompare.CompareAny)
+    # instead of using heuristics to restrict the types
+    # of bonds that can be matched to each other
+    # (rdFMCS.BondCompare.CompareOrder).
+    # This can be slow for larger molecules,
+    # so we skip them if the substrate or metabolite
+    # has too many heavy atoms (filter_size parameter).
     if annotator.is_too_large_to_process():
         return annotator.log_and_return()
 
