@@ -108,12 +108,14 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> Optional[in
 
 
 def get_neighbor_atomic_nums(mol, atom_id) -> set:
-    """Return a set of atomic numbers of neighboring atoms."""
-    return {
-        neighbor.GetAtomicNum()
-        for neighbor in mol.GetAtomWithIdx(atom_id).GetNeighbors()
-    }
-
+    """Return a dict of atomic numbers and counts of neighboring atoms."""
+    neighboring_atoms = dict()
+    for neighbor in mol.GetAtomWithIdx(atom_id).GetNeighbors():
+        atomic_num = neighbor.GetAtomicNum()
+        if atomic_num not in neighboring_atoms:
+            neighboring_atoms[atomic_num] = 0
+        neighboring_atoms[atomic_num] += 1
+    return neighboring_atoms
 
 def is_carbon_count_unchanged(
     substrate_elements: dict, metabolite_elements: dict

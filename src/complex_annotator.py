@@ -10,87 +10,24 @@ from .utils import get_neighbor_atomic_nums, log, mol_to_graph
 class ComplexAnnotator(BaseAnnotator):
     """Annotate SoMs for complex reactions."""
 
-    # def _correct_alkyl_chain_deletion(self) -> bool:
-    #     """Correct SoMs for the deletion of one or more carbon atoms from an
-    #     alkyl chain."""
-    #     # Compare carbon counts
-    #     substrate_carbon_count = sum(
-    #         1 for atom in self.substrate.GetAtoms() if atom.GetSymbol() == "C"
+    # def _correct_furan_hydrolysis(self) -> bool:
+    #     """Correct SoMs for furan hydrolysis reactions."""
+    #     smarts_furan = "c1ccoc1"
+    #     matched_atoms = set(
+    #         self.substrate.GetSubstructMatch(MolFromSmarts(smarts_furan))
     #     )
-    #     metabolite_carbon_count = sum(
-    #         1 for atom in self.metabolite.GetAtoms() if atom.GetSymbol() == "C"
-    #     )
-
-    #     # Compute carbon loss
-    #     carbon_loss = substrate_carbon_count - metabolite_carbon_count
-    #     if carbon_loss < 1:
+    #     if not matched_atoms.intersection(self.soms):
     #         return False
-
-    #     # Find the MCS
-    #     self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
-    #     mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
-    #     mcs_mol = MolFromSmarts(mcs.smartsString)
-
-    #     if not mcs_mol:
-    #         return False
-
-    #     # Map atoms from substrate to metabolite using substructure match
-    #     substrate_atoms = set(range(self.substrate.GetNumHeavyAtoms()))
-    #     mcs_match_substrate_atoms = set(self.substrate.GetSubstructMatch(mcs_mol))
-    #     deleted_atoms = substrate_atoms - mcs_match_substrate_atoms
-
-    #     # Extract deleted carbon fragment
-    #     deleted_carbons = []
-    #     for atom_idx in deleted_atoms:
-    #         atom = self.substrate.GetAtomWithIdx(atom_idx)
-    #         if atom.GetSymbol() == "C":
-    #             deleted_carbons.append(atom_idx)
-
-    #     # If no carbon was deleted, return False
-    #     if len(deleted_carbons) < 1:
-    #         return False
-
-    #     # Ensure the lost carbons formed a connected alkyl chain
-    #     visited = set()
-
-    #     def dfs(atom_idx):
-    #         """Depth-First Search to explore connected deleted carbons."""
-    #         if atom_idx in visited:
-    #             return
-    #         visited.add(atom_idx)
-    #         for neighbor in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors():
-    #             if (
-    #                 neighbor.GetIdx() in deleted_carbons
-    #                 and neighbor.GetIdx() not in visited
-    #             ):
-    #                 dfs(neighbor.GetIdx())
-
-    #     # Start DFS from the first deleted carbon
-    #     dfs(deleted_carbons[0])
-
-    #     # Check if all deleted carbons are part of one connected fragment
-    #     if visited != set(deleted_carbons):
-    #         return False
-
-    #     # Check if the deleted fragment is an alkyl chain (only C and H neighbors)
-    #     for atom_idx in deleted_carbons:
-    #         neighbors = [
-    #             n.GetSymbol()
-    #             for n in self.substrate.GetAtomWithIdx(atom_idx).GetNeighbors()
-    #         ]
-    #         for n in neighbors:
-    #             if n not in {"C", "H"}:
-    #                 deleted_carbons.remove(atom_idx)
-    #                 break
-
-    #     # Update SoMs
-    #     self.soms = list(deleted_carbons)
+    #     self.soms = [atom.GetIdx() for atom in self.substrate.GetAtoms()
+    #                  if atom.GetIdx() in matched_atoms
+    #                  and atom.GetAtomicNum() == 6
+    #                  and (get_neighbor_atomic_nums(self.substrate, atom.GetIdx()).get(8) == 1)]
     #     self.reaction_type = (
-    #         "complex (maximum common subgraph matching - alkyl chain deletion)"
+    #         "complex (maximum common subgraph mapping - furan hydrolysis)"
     #     )
-    #     log(self.logger_path, "Alkyl chain deletion detected. Corrected SoMs.")
+    #     log(self.logger_path, "Furan hydrolysis detected. Corrected SoMs.")
     #     return bool(self.soms)
-
+        
     def _correct_oxacyclopropane_hydrolysis(self) -> bool:
         """Correct SoMs for oxacyclopropane hydrolysis reactions."""
         smarts_oxacyclopropane = "C1OC1"
@@ -106,7 +43,7 @@ class ComplexAnnotator(BaseAnnotator):
             if atom.GetIdx() in matched_atoms and atom.GetAtomicNum() == 6
         ]
         self.reaction_type = (
-            "complex (maximum common subgraph matching - oxacyclopropane hydrolysis)"
+            "complex (maximum common subgraph mapping - oxacyclopropane hydrolysis)"
         )
         log(self.logger_path, "Oxacyclopropane hydrolysis detected. Corrected SoMs.")
         return bool(self.soms)
@@ -149,7 +86,7 @@ class ComplexAnnotator(BaseAnnotator):
                     break
 
             self.reaction_type = (
-                "complex (maximum common subgraph matching - lactone hydrolysis)"
+                "complex (maximum common subgraph mapping - lactone hydrolysis)"
             )
             log(self.logger_path, "Lactone hydrolysis detected. Corrected SoMs.")
             return True
@@ -176,7 +113,7 @@ class ComplexAnnotator(BaseAnnotator):
                     if self.substrate.GetAtomWithIdx(som).GetSymbol() == "C"
                 ]
                 self.reaction_type = (
-                    "complex (maximum common subgraph matching - heterocycle opening)"
+                    "complex (maximum common subgraph mapping - heterocycle opening)"
                 )
                 log(self.logger_path, "Heterocycle opening detected. Corrected SoMs.")
                 return True
@@ -194,28 +131,28 @@ class ComplexAnnotator(BaseAnnotator):
             if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
         ]
         self.reaction_type = (
-            "complex (maximum common subgraph matching - thiourea reduction)"
+            "complex (maximum common subgraph mapping - thiourea reduction)"
         )
         log(self.logger_path, "Thiourea reduction detected. Corrected SoMs.")
         return bool(self.soms)
 
     def handle_complex_reaction(self) -> bool:
         """Annotate SoMs for complex reactions."""
-        log(self.logger_path, "Attempting subgraph isomorphism matching.")
-        if self.handle_complex_reaction_subgraph_ismorphism_matching():
+        log(self.logger_path, "Attempting subgraph isomorphism mapping.")
+        if self.handle_complex_reaction_subgraph_ismorphism_mapping():
             return True
 
-        log(self.logger_path, "Attempting maximum common subgraph matching.")
-        if self.handle_complex_reaction_maximum_common_subgraph_matching():
+        log(self.logger_path, "Attempting maximum common subgraph mapping.")
+        if self.handle_complex_reaction_maximum_common_subgraph_mapping():
             return True
 
         return False
 
-    def handle_complex_reaction_subgraph_ismorphism_matching(
+    def handle_complex_reaction_subgraph_ismorphism_mapping(
         self,
     ) -> bool:
         """Annotate SoMs for complex reactions using subgraph isomorphism
-        matching."""
+        mapping."""
         mol_graph_substrate = mol_to_graph(self.substrate)
         mol_graph_metabolite = mol_to_graph(self.metabolite)
 
@@ -223,35 +160,37 @@ class ComplexAnnotator(BaseAnnotator):
         substrate_in_metabolite_flag = False
 
         # Check if the substrate is a subgraph of the metabolite or vice versa
-        graph_matching_metabolite_in_substrate = isomorphism.GraphMatcher(
+        graph_mapping_metabolite_in_substrate = isomorphism.GraphMatcher(
             mol_graph_substrate,
             mol_graph_metabolite,
             node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
         )
-        graph_matching_substrate_in_metabolite = isomorphism.GraphMatcher(
+        graph_mapping_substrate_in_metabolite = isomorphism.GraphMatcher(
             mol_graph_metabolite,
             mol_graph_substrate,
             node_match=isomorphism.categorical_node_match(["atomic_num"], [0]),
         )
 
-        if graph_matching_metabolite_in_substrate.is_isomorphic():
+        if graph_mapping_metabolite_in_substrate.is_isomorphic():
             metabolite_in_substrate_flag = True
-        if graph_matching_substrate_in_metabolite.is_isomorphic():
+        if graph_mapping_substrate_in_metabolite.is_isomorphic():
             substrate_in_metabolite_flag = True
+
+        # Find the SOMs in the case of complete mapping
+        # (metabolite is fully mapped to substrate and vice versa)
 
         if metabolite_in_substrate_flag and substrate_in_metabolite_flag:
             log(
                 self.logger_path,
-                "Subgraph isomorphism matching found!",
+                "Subgraph isomorphism mapping found!",
             )
             log(
                 self.logger_path,
                 "Substrate and metabolite have complete mapping.",
             )
-            self.mapping = graph_matching_metabolite_in_substrate.mapping
-            self.reaction_type = "complex (subgraph isomorphism matching)"
-
-            # Find the SOMs in the case of complete mapping
+            self.mapping = graph_mapping_metabolite_in_substrate.mapping
+            self.reaction_type = "complex (subgraph isomorphism mapping)"
+            
             # An atom is a SoM if the number of bonded hydrogens is different
             # or the formal charge is different
             self.soms = [
@@ -267,94 +206,18 @@ class ComplexAnnotator(BaseAnnotator):
                 )
             ]
             return True
+        log(
+            self.logger_path,
+            "No subgraph isomorphism mapping found.",
+        )
+        return False
+    
 
-        if metabolite_in_substrate_flag:
-            log(
-                self.logger_path,
-                "Subgraph isomorphism matching found!",
-            )
-            log(
-                self.logger_path,
-                "Metabolite is an isomorphic subgraph of the substrate.",
-            )
-            self.mapping = graph_matching_metabolite_in_substrate.mapping
-            already_matched_metabolite_atom_indices = set(self.mapping.values())
-
-        if substrate_in_metabolite_flag:
-            log(
-                self.logger_path,
-                "Subgraph isomorphism matching found!",
-            )
-            log(
-                self.logger_path,
-                "Substrate is an isomorphic subgraph of the metabolite.",
-            )
-            self.mapping = graph_matching_substrate_in_metabolite.mapping
-            already_matched_metabolite_atom_indices = set(self.mapping.keys())
-        else:
-            log(self.logger_path, "No subgraph isomorphism matching found.")
-            return False
-
-        # Find the soms in the case of incomplete mapping
-
-        # Step 1: Check that every atom in the substrate is matched to an atom in the metabolite
-        # If no atom in the metabolite is assigned to the atom in the substrate,
-        # assign the first available atom
-        for atom_s in self.substrate.GetAtoms():
-
-            if self.mapping.get(atom_s.GetIdx()) is None:
-                try:
-                    first_of_remaining_unmapped_ids = [
-                        i
-                        for i in range(self.metabolite.GetNumHeavyAtoms())
-                        if i not in already_matched_metabolite_atom_indices
-                    ][0]
-                    self.mapping[atom_s.GetIdx()] = first_of_remaining_unmapped_ids
-                    already_matched_metabolite_atom_indices.add(
-                        first_of_remaining_unmapped_ids
-                    )
-                except IndexError:
-                    self.mapping[atom_s.GetIdx()] = -1
-
-        # Step 2: Compute the SoMs by comparing the atoms in the substrate and the metabolite:
-        # if 1.) the degree,
-        # or 2.) the neighbors (in terms of atomic number),
-        # or 3.) the number of bonded hydrogens,
-        # or 4.) the charge,
-        # are different, then the atom is a SoM.
-        self.soms = [
-            atom_id_s
-            for atom_id_s, atom_id_m in self.mapping.items()
-            if atom_id_m != -1
-            and (
-                self.substrate.GetAtomWithIdx(atom_id_s).GetDegree()
-                != self.metabolite.GetAtomWithIdx(atom_id_m).GetDegree()
-                or set(
-                    neighbor.GetAtomicNum()
-                    for neighbor in self.substrate.GetAtomWithIdx(
-                        atom_id_s
-                    ).GetNeighbors()
-                )
-                != set(
-                    neighbor.GetAtomicNum()
-                    for neighbor in self.metabolite.GetAtomWithIdx(
-                        atom_id_m
-                    ).GetNeighbors()
-                )
-                or self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
-                != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
-                or self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
-                != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge()
-            )
-        ]
-        self.reaction_type = "complex (subgraph isomorphism matching)"
-        return True
-
-    def handle_complex_reaction_maximum_common_subgraph_matching(
+    def handle_complex_reaction_maximum_common_subgraph_mapping(
         self,
     ) -> bool:
         """Annotate SoMs for complex reactions using largest common subgraph
-        (maximum common substructure) matching."""
+        (maximum common substructure) mapping."""
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
         mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
 
@@ -369,7 +232,7 @@ class ComplexAnnotator(BaseAnnotator):
         )
 
         # Identify SoMs based on atom environment differences.
-        # if 1.) the neighbors (in terms of atomic number),
+        # if 1.) the neighbors (in terms of atomic number and counts),
         # or 2.) the number of bonded hydrogens,
         # are different, then the atom is a SoM.
         self.soms = [
@@ -396,12 +259,12 @@ class ComplexAnnotator(BaseAnnotator):
 
         if self._correct_other_heterocycle_opening():
             return True
-
-        # if self._correct_alkyl_chain_deletion():
+        
+        # if self._correct_furan_hydrolysis():
         #     return True
 
         if bool(self.soms):
-            self.reaction_type = "complex (maximum common subgraph matching)"
+            self.reaction_type = "complex (maximum common subgraph mapping)"
             return True
 
         return False
