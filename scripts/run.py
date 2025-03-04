@@ -161,7 +161,9 @@ if __name__ == "__main__":
         {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
     # Get only the first entry if multiple entries exist for the same substrate
-    data_grouped_first = data.groupby("substrate_canonical_smiles", as_index=False).first()[
+    data_grouped_first = data.groupby(
+        "substrate_canonical_smiles", as_index=False
+    ).first()[
         [
             column
             for column in data.columns

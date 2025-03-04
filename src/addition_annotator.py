@@ -189,7 +189,7 @@ class AdditionAnnotator(BaseAnnotator):
             dict: A mapping between the atoms in the source
                   molecule and the atoms in the target molecule.
         """
-        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareOrder)
+        self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
         mcs = rdFMCS.FindMCS([source_mol, target_mol], self.mcs_params)
         if not mcs or not mcs.queryMol:
             return None

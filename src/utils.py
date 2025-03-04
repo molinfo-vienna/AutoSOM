@@ -117,6 +117,7 @@ def get_neighbor_atomic_nums(mol, atom_id) -> set:
         neighboring_atoms[atomic_num] += 1
     return neighboring_atoms
 
+
 def is_carbon_count_unchanged(
     substrate_elements: dict, metabolite_elements: dict
 ) -> bool:

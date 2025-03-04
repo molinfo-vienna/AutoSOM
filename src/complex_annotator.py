@@ -27,7 +27,7 @@ class ComplexAnnotator(BaseAnnotator):
     #     )
     #     log(self.logger_path, "Furan hydrolysis detected. Corrected SoMs.")
     #     return bool(self.soms)
-        
+
     def _correct_oxacyclopropane_hydrolysis(self) -> bool:
         """Correct SoMs for oxacyclopropane hydrolysis reactions."""
         smarts_oxacyclopropane = "C1OC1"
@@ -190,7 +190,7 @@ class ComplexAnnotator(BaseAnnotator):
             )
             self.mapping = graph_mapping_metabolite_in_substrate.mapping
             self.reaction_type = "complex (subgraph isomorphism mapping)"
-            
+
             # An atom is a SoM if the number of bonded hydrogens is different
             # or the formal charge is different
             self.soms = [
@@ -211,7 +211,6 @@ class ComplexAnnotator(BaseAnnotator):
             "No subgraph isomorphism mapping found.",
         )
         return False
-    
 
     def handle_complex_reaction_maximum_common_subgraph_mapping(
         self,
@@ -259,7 +258,7 @@ class ComplexAnnotator(BaseAnnotator):
 
         if self._correct_other_heterocycle_opening():
             return True
-        
+
         # if self._correct_furan_hydrolysis():
         #     return True
 

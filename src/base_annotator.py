@@ -177,7 +177,11 @@ class BaseAnnotator:
             log(self.logger_path, "No reaction detected.")
         else:
             log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
-        return sorted(self.soms), self.reaction_type, (datetime.now() - self.time).total_seconds()
+        return (
+            sorted(self.soms),
+            self.reaction_type,
+            (datetime.now() - self.time).total_seconds(),
+        )
 
     def log_initial_reaction_info(self) -> None:
         """Log the initial reaction information."""
