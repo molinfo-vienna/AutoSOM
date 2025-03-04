@@ -1,5 +1,6 @@
 """Contains pilot function for SOM annotation"""
 
+from datetime import datetime
 from typing import List, Tuple
 
 from rdkit.Chem import Mol
@@ -18,6 +19,7 @@ def annotate_soms(
 ) -> Tuple[List[int], str]:
     """Annotates SoMs for a given substrate-metabolite pair."""
     annotator = BaseAnnotator(params, substrate_data, metabolite_data)
+    annotator.time = datetime.now()
 
     annotator.log_initial_reaction_info()
 
@@ -37,6 +39,11 @@ def annotate_soms(
         params, substrate_data, metabolite_data
     )
     redox_annotator = RedoxAnnotator(params, substrate_data, metabolite_data)
+
+    addition_annotator.time = datetime.now()
+    complex_annotator.time = datetime.now()
+    elimination_annotator.time = datetime.now()
+    redox_annotator.time = datetime.now()
 
     weight_ratio = annotator.compute_weight_ratio()
 

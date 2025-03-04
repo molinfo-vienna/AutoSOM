@@ -31,7 +31,8 @@ def _find_symmetry_groups(mol: Mol):
 
 
 def check_and_collapse_substrate_id(substrate_id) -> Optional[int]:
-    """Collapse substrate_id to a single id if multiple ids are present."""
+    """Collapse list of substrate ids within a canonical smiles group into a single substrate id.
+    If more than one substrate id is found, print a warning."""
     if substrate_id is None:
         return None
     substrate_id_lst = substrate_id.to_list()

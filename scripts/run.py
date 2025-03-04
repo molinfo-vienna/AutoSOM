@@ -36,7 +36,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from rdkit.Chem import PandasTools  # type: ignore
-from rdkit.Chem import MolFromSmiles, MolToInchiKey
+from rdkit.Chem import MolFromSmiles, MolToSmiles
 from tqdm import tqdm
 
 from src.autosom import annotate_soms
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     # Predict SOMs
     params = (logger_path, args.filter_size, args.ester_hydrolysis)
-    data[["soms", "annotation_rule"]] = data.progress_apply(
+    data[["soms", "annotation_rule", "time"]] = data.progress_apply(
         lambda x: annotate_soms(
             params,
             (x.substrate_mol, x.substrate_id),
@@ -125,9 +125,11 @@ if __name__ == "__main__":
     )
 
     # Output annotations
+    data["sdf_id"] = data["substrate_id"]
     PandasTools.WriteSDF(
         df=data,
         out=os.path.join(args.outputPath, "substrates.sdf"),
+        idName="sdf_id",
         molColName="substrate_mol",
         properties=[column for column in data.columns if "mol" not in column],
     )
@@ -135,6 +137,7 @@ if __name__ == "__main__":
     PandasTools.WriteSDF(
         df=data,
         out=os.path.join(args.outputPath, "metabolites.sdf"),
+        idName="sdf_id",
         molColName="metabolite_mol",
         properties=[column for column in data.columns if "mol" not in column],
     )
@@ -151,14 +154,14 @@ if __name__ == "__main__":
     # This step merges all the soms from the same substrate and outputs the data
     # in a single SDF file.
 
-    data["substrate_inchikey"] = data["substrate_mol"].map(MolToInchiKey)
-    data["metabolite_inchikey"] = data["metabolite_mol"].map(MolToInchiKey)
+    data["substrate_canonical_smiles"] = data["substrate_mol"].map(MolToSmiles)
+    data["metabolite_canonical_smiles"] = data["metabolite_mol"].map(MolToSmiles)
 
-    data_grouped = data.groupby("substrate_inchikey", as_index=False).agg(
+    data_grouped = data.groupby("substrate_canonical_smiles", as_index=False).agg(
         {"soms": concat_lists, "substrate_id": check_and_collapse_substrate_id}
     )
     # Get only the first entry if multiple entries exist for the same substrate
-    data_grouped_first = data.groupby("substrate_inchikey", as_index=False).first()[
+    data_grouped_first = data.groupby("substrate_canonical_smiles", as_index=False).first()[
         [
             column
             for column in data.columns
@@ -170,11 +173,11 @@ if __name__ == "__main__":
     data_grouped_first["substrate_id"] = data_grouped_first["substrate_id"].astype(int)
 
     data_merged = data_grouped.merge(data_grouped_first, how="inner")
-
+    data_merged["sdf_id"] = data_merged["substrate_id"]
     PandasTools.WriteSDF(
         df=data_merged,
         out=os.path.join(args.outputPath, "merged.sdf"),
-        idName="substrate_id",
+        idName="sdf_id",
         molColName="substrate_mol",
         properties=[column for column in data_merged.columns if "mol" not in column],
     )

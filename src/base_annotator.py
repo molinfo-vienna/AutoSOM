@@ -1,6 +1,7 @@
 # pylint: disable=I1101
 """Provides base functionalities for annotating sites of metabolism (SOMs)."""
 
+from datetime import datetime
 from typing import List, Tuple
 
 from chembl_structure_pipeline import standardizer
@@ -48,6 +49,7 @@ class BaseAnnotator:
         self.mcs_params = self._initialize_mcs_params()
         self.reaction_type = "unknown"
         self.soms = []
+        self.time = 0
 
     def _initialize_mcs_params(self):
         mcs_params = rdFMCS.MCSParameters()
@@ -175,7 +177,7 @@ class BaseAnnotator:
             log(self.logger_path, "No reaction detected.")
         else:
             log(self.logger_path, f"{self.reaction_type.capitalize()} successful.")
-        return sorted(self.soms), self.reaction_type
+        return sorted(self.soms), self.reaction_type, (datetime.now() - self.time).total_seconds()
 
     def log_initial_reaction_info(self) -> None:
         """Log the initial reaction information."""
