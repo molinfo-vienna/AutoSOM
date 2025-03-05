@@ -231,8 +231,7 @@ class ComplexAnnotator(BaseAnnotator):
         )
 
         # Identify SoMs based on atom environment differences.
-        # if 1.) the neighbors (in terms of atomic number and counts),
-        # or 2.) the number of bonded hydrogens,
+        # if the neighbors (in terms of atomic number and counts),
         # are different, then the atom is a SoM.
         self.soms = [
             atom_id_s
@@ -240,10 +239,6 @@ class ComplexAnnotator(BaseAnnotator):
             if (
                 get_neighbor_atomic_nums(self.substrate, atom_id_s)
                 != get_neighbor_atomic_nums(self.metabolite, atom_id_m)
-            )
-            or (
-                self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
-                != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
             )
         ]
 
