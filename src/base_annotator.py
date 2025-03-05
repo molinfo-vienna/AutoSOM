@@ -121,11 +121,19 @@ class BaseAnnotator:
             return False
         return True
 
-    def check_inchi_validity(self) -> bool:
+    def check_validity(self) -> bool:
         """Check if the substrate and metabolite are valid molecules (inchikey
         can be computed)."""
-        substrate_inchikey = MolToInchiKey(self.substrate)
-        metabolite_inchikey = MolToInchiKey(self.metabolite)
+        if self.substrate is None or self.metabolite is None:
+            substrate_inchikey = None
+            metabolite_inchikey = None
+        else:
+            try:
+                substrate_inchikey = MolToInchiKey(self.substrate)
+                metabolite_inchikey = MolToInchiKey(self.metabolite)
+            except Exception:
+                substrate_inchikey = None
+                metabolite_inchikey = None
         if substrate_inchikey is None:
             log(self.logger_path, "Invalid substrate.")
             return False

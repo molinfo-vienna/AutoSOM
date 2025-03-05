@@ -23,12 +23,12 @@ def annotate_soms(
 
     annotator.log_initial_reaction_info()
 
-    if not annotator.check_inchi_validity():
+    if not annotator.check_validity():
         return annotator.log_and_return()
     if not annotator.check_atom_types():
         return annotator.log_and_return()
-    # if not annotator.standardize_molecules():
-    #     return annotator.log_and_return()
+    if not annotator.standardize_molecules():
+        return annotator.log_and_return()
 
     annotator.remove_hydrogens()
     annotator.initialize_atom_notes()
