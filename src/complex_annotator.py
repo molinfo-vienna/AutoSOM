@@ -125,28 +125,19 @@ class ComplexAnnotator(BaseAnnotator):
         if not self.substrate.HasSubstructMatch(MolFromSmarts("NC(=S)N")):
             return False
 
-        self.soms = [
+        self.corrected_soms = [
             som
             for som in self.soms
             if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
         ]
+        if len(self.corrected_soms) == 0:
+            return False
+        self.soms = self.corrected_soms
         self.reaction_type = (
             "complex (maximum common subgraph mapping - thiourea reduction)"
         )
         log(self.logger_path, "Thiourea reduction detected. Corrected SoMs.")
         return bool(self.soms)
-
-    def handle_complex_reaction(self) -> bool:
-        """Annotate SoMs for complex reactions."""
-        log(self.logger_path, "Attempting subgraph isomorphism mapping.")
-        if self.handle_complex_reaction_subgraph_ismorphism_mapping():
-            return True
-
-        log(self.logger_path, "Attempting maximum common subgraph mapping.")
-        if self.handle_complex_reaction_maximum_common_subgraph_mapping():
-            return True
-
-        return False
 
     def handle_complex_reaction_subgraph_ismorphism_mapping(
         self,
@@ -259,6 +250,18 @@ class ComplexAnnotator(BaseAnnotator):
 
         if bool(self.soms):
             self.reaction_type = "complex (maximum common subgraph mapping)"
+            return True
+
+        return False
+    
+    def handle_complex_reaction(self) -> bool:
+        """Annotate SoMs for complex reactions."""
+        log(self.logger_path, "Attempting subgraph isomorphism mapping.")
+        if self.handle_complex_reaction_subgraph_ismorphism_mapping():
+            return True
+
+        log(self.logger_path, "Attempting maximum common subgraph mapping.")
+        if self.handle_complex_reaction_maximum_common_subgraph_mapping():
             return True
 
         return False
