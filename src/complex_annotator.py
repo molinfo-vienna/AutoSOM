@@ -10,24 +10,6 @@ from .utils import get_neighbor_atomic_nums, log, mol_to_graph
 class ComplexAnnotator(BaseAnnotator):
     """Annotate SoMs for complex reactions."""
 
-    # def _correct_furan_hydrolysis(self) -> bool:
-    #     """Correct SoMs for furan hydrolysis reactions."""
-    #     smarts_furan = "c1ccoc1"
-    #     matched_atoms = set(
-    #         self.substrate.GetSubstructMatch(MolFromSmarts(smarts_furan))
-    #     )
-    #     if not matched_atoms.intersection(self.soms):
-    #         return False
-    #     self.soms = [atom.GetIdx() for atom in self.substrate.GetAtoms()
-    #                  if atom.GetIdx() in matched_atoms
-    #                  and atom.GetAtomicNum() == 6
-    #                  and (get_neighbor_atomic_nums(self.substrate, atom.GetIdx()).get(8) == 1)]
-    #     self.reaction_type = (
-    #         "complex (maximum common subgraph mapping - furan hydrolysis)"
-    #     )
-    #     log(self.logger_path, "Furan hydrolysis detected. Corrected SoMs.")
-    #     return bool(self.soms)
-
     def _correct_oxacyclopropane_hydrolysis(self) -> bool:
         """Correct SoMs for oxacyclopropane hydrolysis reactions."""
         smarts_oxacyclopropane = "C1OC1"
@@ -37,11 +19,14 @@ class ComplexAnnotator(BaseAnnotator):
         if not matched_atoms.intersection(self.soms):
             return False
 
-        self.soms = [
+        self.corrected_soms = [
             atom.GetIdx()
             for atom in self.substrate.GetAtoms()
             if atom.GetIdx() in matched_atoms and atom.GetAtomicNum() == 6
         ]
+        if len(self.corrected_soms) == 0:
+            return False
+        self.soms = self.corrected_soms
         self.reaction_type = (
             "complex (maximum common subgraph mapping - oxacyclopropane hydrolysis)"
         )
@@ -82,9 +67,11 @@ class ComplexAnnotator(BaseAnnotator):
                     neighbor.GetSymbol() == "C"
                     and str(neighbor.GetHybridization()) == "SP2"
                 ):
-                    self.soms = [neighbor.GetIdx()]
+                    self.corrected_soms = [neighbor.GetIdx()]
                     break
-
+            if len(self.corrected_soms) == 0:
+                return False
+            self.soms = self.corrected_soms
             self.reaction_type = (
                 "complex (maximum common subgraph mapping - lactone hydrolysis)"
             )
@@ -92,7 +79,7 @@ class ComplexAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _correct_other_heterocycle_opening(self) -> bool:
+    def _correct_heterocyclic_ring_opening(self) -> bool:
         """Correct SoMs for ring-opening reactions."""
         if (
             self.metabolite.GetRingInfo().NumRings()
@@ -107,11 +94,14 @@ class ComplexAnnotator(BaseAnnotator):
             if som_symbols.count("C") == 1 and any(
                 sym in som_symbols for sym in ["O", "N", "S"]
             ):
-                self.soms = [
+                self.corrected_soms = [
                     som
                     for som in self.soms
                     if self.substrate.GetAtomWithIdx(som).GetSymbol() == "C"
                 ]
+                if len(self.corrected_soms) == 0:
+                    return False
+                self.soms = self.corrected_soms
                 self.reaction_type = (
                     "complex (maximum common subgraph mapping - heterocycle opening)"
                 )
@@ -119,25 +109,6 @@ class ComplexAnnotator(BaseAnnotator):
                 return True
 
         return False
-
-    def _correct_thiourea_reduction(self) -> bool:
-        """Correct SoMs for thiourea reduction reactions."""
-        if not self.substrate.HasSubstructMatch(MolFromSmarts("NC(=S)N")):
-            return False
-
-        self.corrected_soms = [
-            som
-            for som in self.soms
-            if self.substrate.GetAtomWithIdx(som).GetAtomicNum() == 16
-        ]
-        if len(self.corrected_soms) == 0:
-            return False
-        self.soms = self.corrected_soms
-        self.reaction_type = (
-            "complex (maximum common subgraph mapping - thiourea reduction)"
-        )
-        log(self.logger_path, "Thiourea reduction detected. Corrected SoMs.")
-        return bool(self.soms)
 
     def handle_complex_reaction_subgraph_ismorphism_mapping(
         self,
@@ -231,10 +202,15 @@ class ComplexAnnotator(BaseAnnotator):
                 get_neighbor_atomic_nums(self.substrate, atom_id_s)
                 != get_neighbor_atomic_nums(self.metabolite, atom_id_m)
             )
+            # or (
+            #     self.substrate.GetAtomWithIdx(atom_id_s).GetTotalNumHs()
+            #     != self.metabolite.GetAtomWithIdx(atom_id_m).GetTotalNumHs()
+            # )
+            # or (
+            #     self.substrate.GetAtomWithIdx(atom_id_s).GetFormalCharge()
+            #     != self.metabolite.GetAtomWithIdx(atom_id_m).GetFormalCharge()
+            # )
         ]
-
-        if self._correct_thiourea_reduction():
-            return True
 
         if self._correct_oxacyclopropane_hydrolysis():
             return True
@@ -242,11 +218,8 @@ class ComplexAnnotator(BaseAnnotator):
         if self._correct_lactone_hydrolysis():
             return True
 
-        if self._correct_other_heterocycle_opening():
+        if self._correct_heterocyclic_ring_opening():
             return True
-
-        # if self._correct_furan_hydrolysis():
-        #     return True
 
         if bool(self.soms):
             self.reaction_type = "complex (maximum common subgraph mapping)"

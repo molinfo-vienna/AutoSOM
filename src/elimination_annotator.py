@@ -27,35 +27,6 @@ class EliminationAnnotator(BaseAnnotator):
             if atom.GetIdx() not in target.GetSubstructMatch(mcs.queryMol)
         ]
 
-    def _correct_acetal_hydrolysis(self) -> bool:
-        """Correct SoMs for acetals."""
-        acetal_pattern = MolFromSmarts("[C;X4](O[*])O[*]")
-        exclusion_pattern = MolFromSmarts("[C;X4](OC(=O))O[*]")
-
-        if not any(
-            som in self.substrate.GetSubstructMatch(acetal_pattern) for som in self.soms
-        ):
-            return False
-        if any(
-            som in self.substrate.GetSubstructMatch(exclusion_pattern)
-            for som in self.soms
-        ):
-            return False
-
-        corrected_soms = [
-            atom.GetIdx()
-            for atom in self.substrate.GetAtoms()
-            if atom.GetIdx()
-            in self.substrate.GetSubstructMatch(MolFromSmarts("[C;X4](O)O"))
-            and atom.GetAtomicNum() == 6
-        ]
-        if corrected_soms:
-            self.soms = corrected_soms
-            self.reaction_type = "elimination (acetal)"
-            log(self.logger_path, "Acetal elimination detected. Corrected SoMs.")
-            return True
-        return False
-
     def _correct_ester_hydrolysis(self) -> bool:
         """Correct SoMs for ester hydrolysis."""
         if not self.ester_hydrolysis_flag:
@@ -123,7 +94,7 @@ class EliminationAnnotator(BaseAnnotator):
                     # if one of the neighbors of the neighbors is a phosphore atoms,
                     # we have the case where the hydrolsysis of the ester was picked up
                     # correctly by the algorithm, but the wrong side of the ester was annotated.
-                    # We theerfore correct the SOM.
+                    # We therefore correct the SOM.
                     self.soms = [neighbor_bis.GetIdx()]
                     self.reaction_type = (
                         f"elimination ({reaction_type}-derivative hydrolysis)"
@@ -165,30 +136,6 @@ class EliminationAnnotator(BaseAnnotator):
             "Hydrolysis of an ester of an inorganic (sulfur-based) acid detected. Corrected SoMs.",
         )
         return True
-
-    def _correct_piperazine_ring_hydrolysis(self) -> bool:
-        """Correct SoMs for piperazine ring opening."""
-        piperazine_pattern = MolFromSmarts("N1CCNCC1")
-
-        if not any(
-            som in self.substrate.GetSubstructMatch(piperazine_pattern)
-            for som in self.soms
-        ):
-            return False
-
-        additional_soms = [
-            neighbor.GetIdx()
-            for som in self.soms
-            if som in self.substrate.GetSubstructMatch(piperazine_pattern)
-            for neighbor in self.substrate.GetAtomWithIdx(som).GetNeighbors()
-            if neighbor.GetSymbol() == "C"
-        ]
-        if additional_soms:
-            self.soms.extend(additional_soms)
-            self.reaction_type = "elimination (piperazine ring opening)"
-            log(self.logger_path, "Piperazine ring opening detected. Corrected SoMs.")
-            return True
-        return False
 
     def _general_case_elimination(self):
         """Annotate SoMs for general elimination reactions."""
@@ -274,12 +221,6 @@ class EliminationAnnotator(BaseAnnotator):
                 return True
 
             if self._correct_hydrolysis_of_esters_of_inorganic_acids_sulfur():
-                return True
-
-            if self._correct_piperazine_ring_hydrolysis():
-                return True
-
-            if self._correct_acetal_hydrolysis():
                 return True
 
             return True
