@@ -1,5 +1,6 @@
 """Annotates SOMs for complex reactions."""
 
+from datetime import datetime
 from typing import Optional
 
 from networkx.algorithms import isomorphism
@@ -8,16 +9,19 @@ from rdkit.Chem import Atom, MolFromSmarts, rdFMCS
 from .base_annotator import BaseAnnotator
 from .utils import (
     count_elements,
+    get_neighbor_atomic_nums,
     is_carbon_count_unchanged,
     is_halogen_count_decreased,
     is_oxygen_count_increased,
-    get_neighbor_atomic_nums, 
-    log, 
-    mol_to_graph
+    log,
+    mol_to_graph,
 )
+
 
 class ComplexAnnotator(BaseAnnotator):
     """Annotate SoMs for complex reactions."""
+
+    time: datetime
 
     def _correct_epoxide(self) -> bool:
         """Correct the SoMs for oxidative dehalogenation if the reaction
@@ -70,14 +74,14 @@ class ComplexAnnotator(BaseAnnotator):
         if not matched_atoms.intersection(self.soms):
             return False
 
-        self.corrected_soms = [
+        corrected_soms = [
             atom.GetIdx()
             for atom in self.substrate.GetAtoms()
             if atom.GetIdx() in matched_atoms and atom.GetAtomicNum() == 6
         ]
-        if len(self.corrected_soms) == 0:
+        if len(corrected_soms) == 0:
             return False
-        self.soms = self.corrected_soms
+        self.soms = corrected_soms
         self.reaction_type = (
             "complex (maximum common subgraph mapping - oxacyclopropane hydrolysis)"
         )
@@ -118,11 +122,11 @@ class ComplexAnnotator(BaseAnnotator):
                     neighbor.GetSymbol() == "C"
                     and str(neighbor.GetHybridization()) == "SP2"
                 ):
-                    self.corrected_soms = [neighbor.GetIdx()]
+                    corrected_soms = [neighbor.GetIdx()]
                     break
-            if len(self.corrected_soms) == 0:
+            if len(corrected_soms) == 0:
                 return False
-            self.soms = self.corrected_soms
+            self.soms = corrected_soms
             self.reaction_type = (
                 "complex (maximum common subgraph mapping - lactone hydrolysis)"
             )
@@ -145,14 +149,14 @@ class ComplexAnnotator(BaseAnnotator):
             if som_symbols.count("C") == 1 and any(
                 sym in som_symbols for sym in ["O", "N", "S"]
             ):
-                self.corrected_soms = [
+                corrected_soms = [
                     som
                     for som in self.soms
                     if self.substrate.GetAtomWithIdx(som).GetSymbol() == "C"
                 ]
-                if len(self.corrected_soms) == 0:
+                if len(corrected_soms) == 0:
                     return False
-                self.soms = self.corrected_soms
+                self.soms = corrected_soms
                 self.reaction_type = (
                     "complex (maximum common subgraph mapping - heterocycle opening)"
                 )
@@ -347,7 +351,7 @@ class ComplexAnnotator(BaseAnnotator):
             return True
 
         return False
-    
+
     def handle_complex_reaction(self) -> bool:
         """Annotate SoMs for complex reactions."""
 
@@ -355,7 +359,7 @@ class ComplexAnnotator(BaseAnnotator):
         if self._is_oxidative_dehalogenation():
             if self._handle_oxidative_dehalogenation():
                 return True
-        
+
         # Handle subgraph isomorphism mapping
         log(self.logger_path, "Attempting subgraph isomorphism mapping.")
         if self.handle_complex_reaction_subgraph_ismorphism_mapping():

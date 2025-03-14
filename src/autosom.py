@@ -15,7 +15,7 @@ def annotate_soms(
     params: Tuple[str, int, bool],
     substrate_data: Tuple[Mol, int],
     metabolite_data: Tuple[Mol, int],
-) -> Tuple[List[int], str]:
+) -> Tuple[List[int], str, float]:
     """Annotates SoMs for a given substrate-metabolite pair."""
     annotator = BaseAnnotator(params, substrate_data, metabolite_data)
     annotator.time = datetime.now()

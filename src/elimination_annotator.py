@@ -9,6 +9,8 @@ as well as for specific cases: ester hydrolysis, acetal hydrolysis, phosphate hy
 sulfur-derivatives hydrolysis, and piperazine ring opening.
 """
 
+from datetime import datetime
+
 from rdkit.Chem import Mol, MolFromSmarts, rdFMCS
 
 from .base_annotator import BaseAnnotator
@@ -17,6 +19,8 @@ from .utils import get_bond_order, log
 
 class EliminationAnnotator(BaseAnnotator):
     """Annotate SoMs for elimination reactions."""
+
+    time: datetime
 
     @classmethod
     def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:

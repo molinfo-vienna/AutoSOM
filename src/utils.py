@@ -107,9 +107,9 @@ def get_bond_order(molecule: Mol, atom_idx1: int, atom_idx2: int) -> Optional[in
     return None
 
 
-def get_neighbor_atomic_nums(mol, atom_id) -> set:
+def get_neighbor_atomic_nums(mol, atom_id) -> dict[int, int]:
     """Return a dict of atomic numbers and counts of neighboring atoms."""
-    neighboring_atoms = dict()
+    neighboring_atoms = {}
     for neighbor in mol.GetAtomWithIdx(atom_id).GetNeighbors():
         atomic_num = neighbor.GetAtomicNum()
         if atomic_num not in neighboring_atoms:

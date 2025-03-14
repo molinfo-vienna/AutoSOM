@@ -20,6 +20,7 @@ Oxidative dehalogenation reactions come in two flavors:
 - Oxidative dehalogenation producing an epoxide.
 """
 
+from datetime import datetime
 from typing import Optional
 
 from rdkit.Chem import Atom, Mol, MolFromSmarts, rdFMCS
@@ -36,6 +37,8 @@ from .utils import (
 
 class RedoxAnnotator(BaseAnnotator):
     """Annotate SoMs for redox reactions."""
+
+    time: datetime
 
     @classmethod
     def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:

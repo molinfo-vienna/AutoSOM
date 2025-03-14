@@ -29,6 +29,7 @@ class BaseAnnotator:
     params: rdFMCS.MCSParameters
     reaction_type: str
     soms: List[int]
+    time: datetime
 
     def __init__(
         self,
@@ -49,7 +50,7 @@ class BaseAnnotator:
         self.mcs_params = self._initialize_mcs_params()
         self.reaction_type = "unknown"
         self.soms = []
-        self.time = 0
+        self.time = datetime.min
 
     def _initialize_mcs_params(self):
         mcs_params = rdFMCS.MCSParameters()
@@ -131,7 +132,8 @@ class BaseAnnotator:
             try:
                 substrate_inchikey = MolToInchiKey(self.substrate)
                 metabolite_inchikey = MolToInchiKey(self.metabolite)
-            except Exception:
+            except (ValueError, RuntimeError) as e:
+                log(self.logger_path, f"InChIKey conversion failed: {e}")
                 substrate_inchikey = None
                 metabolite_inchikey = None
         if substrate_inchikey is None:
@@ -179,7 +181,7 @@ class BaseAnnotator:
             return True
         return False
 
-    def log_and_return(self) -> tuple[list[int], str]:
+    def log_and_return(self) -> tuple[list[int], str, float]:
         """Log annotation rule and return SOMs and annotation rule."""
         if self.reaction_type == "unknown":
             log(self.logger_path, "No reaction detected.")

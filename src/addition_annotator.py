@@ -8,6 +8,7 @@ This class provides functionalities to annotate SoMs for general addition reacti
 as well as for two specific case: carnitine addition and glutathione conjugation.
 """
 
+from datetime import datetime
 from typing import Optional
 
 from rdkit.Chem import (
@@ -25,6 +26,8 @@ from .utils import log
 
 class AdditionAnnotator(BaseAnnotator):
     """Annotate SoMs for addition reactions."""
+
+    time: datetime
 
     @classmethod
     def _find_unmatched_atoms(cls, target: Mol, mcs) -> list:
@@ -153,11 +156,10 @@ class AdditionAnnotator(BaseAnnotator):
                     # where there is more than one addition site in the substrate.
                     # This should not be the case in clean, single-step reactions,
                     # but it is a possibility in badly curated data.
-                else:
-                    self.soms.append(
-                        self.mapping[neighbor.GetIdx()]
-                    )  # get the index of the neighbor in the MCS query molecule (substrate)
-                    self.reaction_type = "addition (general)"
+                self.soms.append(
+                    self.mapping[neighbor.GetIdx()]
+                )  # get the index of the neighbor in the MCS query molecule (substrate)
+                self.reaction_type = "addition (general)"
 
         if len(self.soms) == 0:
             log(self.logger_path, "General addition matching failed.")
