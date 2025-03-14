@@ -76,7 +76,7 @@ if __name__ == "__main__":
         "--filter_size",
         type=int,
         required=False,
-        default=45,
+        default=55,
         help="The maximum number of heavy atoms tolerated in both substrate and metabolite \
               prior to running redox matching or MCS matching.\
               The runtime can get very high for large molecules.",

@@ -9,7 +9,6 @@ from .addition_annotator import AdditionAnnotator
 from .base_annotator import BaseAnnotator
 from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
-from .redox_annotator import RedoxAnnotator
 
 
 def annotate_soms(
@@ -38,12 +37,10 @@ def annotate_soms(
     elimination_annotator = EliminationAnnotator(
         params, substrate_data, metabolite_data
     )
-    redox_annotator = RedoxAnnotator(params, substrate_data, metabolite_data)
 
     addition_annotator.time = datetime.now()
     complex_annotator.time = datetime.now()
     elimination_annotator.time = datetime.now()
-    redox_annotator.time = datetime.now()
 
     weight_ratio = annotator.compute_weight_ratio()
 
@@ -58,12 +55,7 @@ def annotate_soms(
     # The next steps perform MCS matching
     # with a different set of parameters than was used
     # for addition and elimination reactions.
-    # Specifically, MCS matching for redox reactions requires
-    # constraints on the ring membership:
-    #      BondCompareParameters.CompleteRingsOnly = True
-    #      BondCompareParameters.MatchFusedRings = True
-    #      BondCompareParameters.MatchFusedRingsStrict = True
-    # MCS matching for complex reactions requires
+    # Specifically, MCS matching for complex reactions requires
     # comparing any types of bonds (rdFMCS.BondCompare.CompareAny)
     # instead of using heuristics to restrict the types
     # of bonds that can be matched to each other
@@ -73,10 +65,6 @@ def annotate_soms(
     # has too many heavy atoms (filter_size parameter).
     if annotator.is_too_large_to_process():
         return annotator.log_and_return()
-
-    if weight_ratio == 0:
-        if redox_annotator.handle_redox_reaction():
-            return redox_annotator.log_and_return()
 
     # This last category is to catch all cases that failed previously.
     # It is less specific and has a higher error rate.

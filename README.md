@@ -31,7 +31,7 @@ The `INPUT_PATH` is the path to your input data. The file format must be .csv. I
 
 The `OUTPUT_PATH` is the path where the output (annotated) data as well as the log file will be written.
 
-The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running some MCS matching operations. The default value is 45. The lower the value, the faster the algorithm runs, but the more reactions are filtered out.
+The `FILTER_SIZE` indicates the maximum number of heavy atoms tolerated in both substrate and metabolite prior to running some MCS matching operations. The default value is 55. The lower the value, the faster the algorithm runs, but the more reactions are filtered out.
 
 The `-e` flag controls the strategy for annotating ester hydrolyses. Per default, AutoSOM annotates ester hydrolyses with the same logic as dealkylation reactions (on the alkyl C-atom). If the -e argument is set, the annotation is on the carbonyl C-atom, which is consistent with the MetaQSAR data set.
 
