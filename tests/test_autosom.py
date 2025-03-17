@@ -23,12 +23,16 @@ def sample_reactions():
 
 def test_annotate_soms_initialization():
     """Test annotate_soms function parameters."""
-    params = ("tests/test.log", 55, True)  # logger_path, filter_size, ester_hydrolysis_flag
+    params = (
+        "tests/test.log",
+        55,
+        True,
+    )  # logger_path, filter_size, ester_hydrolysis_flag
     substrate = Chem.MolFromSmiles("c1ccccc1")
     metabolite = Chem.MolFromSmiles("C1CCCCC1")
     substrate_data = (substrate, 1)
     metabolite_data = (metabolite, 2)
-    
+
     soms, reaction_type, time = annotate_soms(params, substrate_data, metabolite_data)
     assert isinstance(soms, list)
     assert isinstance(reaction_type, str)
@@ -38,17 +42,17 @@ def test_annotate_soms_initialization():
 def test_annotate_soms_process_reactions(sample_reactions):
     """Test processing of multiple reactions."""
     params = ("tests/test.log", 55, True)
-    
+
     results = []
     for substrate, metabolite in sample_reactions:
         substrate_data = (substrate, 1)
         metabolite_data = (metabolite, 2)
         result = annotate_soms(params, substrate_data, metabolite_data)
         results.append(result)
-    
+
     # Check that we got results for all reactions
     assert len(results) == len(sample_reactions)
-    
+
     # Check that each result has the expected structure
     for result in results:
         assert isinstance(result, tuple)
@@ -62,14 +66,14 @@ def test_annotate_soms_process_reactions(sample_reactions):
 def test_annotate_soms_reaction_types(sample_reactions):
     """Test identification of different reaction types."""
     params = ("tests/test.log", 55, True)
-    
+
     results = []
     for substrate, metabolite in sample_reactions:
         substrate_data = (substrate, 1)
         metabolite_data = (metabolite, 2)
         result = annotate_soms(params, substrate_data, metabolite_data)
         results.append(result)
-    
+
     # Check that different reaction types are identified
     reaction_types = [result[1] for result in results]
     assert "addition" in reaction_types[0]

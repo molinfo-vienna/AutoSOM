@@ -1,8 +1,8 @@
 """Tests for utility functions."""
 
+import pandas as pd
 import pytest
 from rdkit import Chem
-from rdkit.Chem import Mol
 
 from src.utils import (
     check_and_collapse_substrate_id,
@@ -26,20 +26,19 @@ def sample_molecule():
 
 def test_check_and_collapse_substrate_id():
     """Test substrate ID collapsing functionality."""
-    import pandas as pd
 
     # Test with single ID
     series = pd.Series([1])
     assert check_and_collapse_substrate_id(series) == 1
-    
-    # Test with multiple identical IDs 
+
+    # Test with multiple identical IDs
     series = pd.Series([1, 1, 1])
     assert check_and_collapse_substrate_id(series) == 1
-    
+
     # Test with different IDs
-    series = pd.Series([1, 2, 3]) 
+    series = pd.Series([1, 2, 3])
     assert check_and_collapse_substrate_id(series) is None
-    
+
     # Test with None
     assert check_and_collapse_substrate_id(None) is None
 
@@ -107,4 +106,4 @@ def test_symmetrize_soms(sample_molecule):
     symmetrized = symmetrize_soms(sample_molecule, soms)
     # In benzene, position 0 is equivalent to position 4
     assert len(symmetrized) > 1
-    assert all(pos in symmetrized for pos in [0, 4]) 
+    assert all(pos in symmetrized for pos in [0, 4])

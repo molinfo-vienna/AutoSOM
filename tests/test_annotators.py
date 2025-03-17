@@ -2,11 +2,7 @@
 
 import pytest
 from rdkit import Chem
-from rdkit.Chem import Mol
 
-from src.addition_annotator import AdditionAnnotator
-from src.complex_annotator import ComplexAnnotator
-from src.elimination_annotator import EliminationAnnotator
 from src.autosom import annotate_soms
 
 
@@ -16,19 +12,19 @@ def sample_molecules():
     # Addition reaction: benzene -> phenol
     addition_substrate = Chem.MolFromSmiles("c1ccccc1")
     addition_metabolite = Chem.MolFromSmiles("c1ccccc1O")
-    
+
     # Elimination reaction: phenol -> benzene
     elimination_substrate = Chem.MolFromSmiles("c1ccccc1O")
     elimination_metabolite = Chem.MolFromSmiles("c1ccccc1")
-    
+
     # Complex reaction: hydrolysis of butyrolactone
     complex_substrate = Chem.MolFromSmiles("C1CC(=O)OC1")
     complex_metabolite = Chem.MolFromSmiles("OCCCC(=O)O")
-    
+
     # Invalid reaction: benzene -> benzene
     invalid_substrate = None
     invalid_metabolite = Chem.MolFromSmiles("c1ccccc1")
-    
+
     return {
         "addition": (addition_substrate, addition_metabolite),
         "elimination": (elimination_substrate, elimination_metabolite),
@@ -40,7 +36,11 @@ def sample_molecules():
 @pytest.fixture
 def annotator_params():
     """Create parameters for annotators."""
-    return ("tests/test.log", 55, True)  # logger_path, filter_size, ester_hydrolysis_flag
+    return (
+        "tests/test.log",
+        55,
+        True,
+    )  # logger_path, filter_size, ester_hydrolysis_flag
 
 
 def test_addition_annotator(sample_molecules, annotator_params):
@@ -48,9 +48,11 @@ def test_addition_annotator(sample_molecules, annotator_params):
     substrate, metabolite = sample_molecules["addition"]
     substrate_data = (substrate, 1)
     metabolite_data = (metabolite, 2)
-    
-    soms, reaction_type, _ = annotate_soms(annotator_params, substrate_data, metabolite_data)
-    
+
+    soms, reaction_type, _ = annotate_soms(
+        annotator_params, substrate_data, metabolite_data
+    )
+
     assert len(soms) > 0  # Should identify addition sites
     assert "addition" in reaction_type
 
@@ -60,9 +62,11 @@ def test_elimination_annotator(sample_molecules, annotator_params):
     substrate, metabolite = sample_molecules["elimination"]
     substrate_data = (substrate, 1)
     metabolite_data = (metabolite, 2)
-    
-    soms, reaction_type, _ = annotate_soms(annotator_params, substrate_data, metabolite_data)
-    
+
+    soms, reaction_type, _ = annotate_soms(
+        annotator_params, substrate_data, metabolite_data
+    )
+
     assert len(soms) > 0  # Should identify elimination sites
     assert "elimination" in reaction_type
 
@@ -72,9 +76,11 @@ def test_complex_annotator(sample_molecules, annotator_params):
     substrate, metabolite = sample_molecules["complex"]
     substrate_data = (substrate, 1)
     metabolite_data = (metabolite, 2)
-    
-    soms, reaction_type, _ = annotate_soms(annotator_params, substrate_data, metabolite_data)
-    
+
+    soms, reaction_type, _ = annotate_soms(
+        annotator_params, substrate_data, metabolite_data
+    )
+
     assert len(soms) > 0  # Should identify complex sites
     assert "complex" in reaction_type
 
@@ -85,8 +91,10 @@ def test_invalid_reactions(sample_molecules, annotator_params):
     substrate, metabolite = sample_molecules["invalid"]
     substrate_data = (substrate, 1)
     metabolite_data = (metabolite, 2)
-    
-    soms, reaction_type, _ = annotate_soms(annotator_params, substrate_data, metabolite_data)
-    
+
+    soms, reaction_type, _ = annotate_soms(
+        annotator_params, substrate_data, metabolite_data
+    )
+
     assert len(soms) == 0  # Should return empty list
     assert "unknown" in reaction_type
