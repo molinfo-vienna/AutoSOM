@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from rdkit import Chem
 
-from src.utils import (
+from autosom.utils import (
     check_and_collapse_substrate_id,
     concat_lists,
     count_elements,

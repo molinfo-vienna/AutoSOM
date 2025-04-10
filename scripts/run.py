@@ -39,8 +39,8 @@ from rdkit.Chem import PandasTools  # type: ignore
 from rdkit.Chem import MolFromSmiles, MolToSmiles
 from tqdm import tqdm
 
-from src.autosom import annotate_soms
-from src.utils import (
+from autosom.autosom import annotate_soms
+from autosom.utils import (
     check_and_collapse_substrate_id,
     concat_lists,
     log,

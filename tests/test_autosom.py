@@ -3,7 +3,7 @@
 import pytest
 from rdkit import Chem
 
-from src.autosom import annotate_soms
+from autosom.autosom import annotate_soms
 
 
 @pytest.fixture

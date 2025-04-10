@@ -3,7 +3,7 @@
 import pytest
 from rdkit import Chem
 
-from src.base_annotator import BaseAnnotator
+from autosom.base_annotator import BaseAnnotator
 
 
 @pytest.fixture
