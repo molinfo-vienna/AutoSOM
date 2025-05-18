@@ -25,7 +25,7 @@ Install autosom package:
 
 To annotate data, please run:
 
-`python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -t TYPE -f FILTER_SIZE -e`
+`python scripts/run.py -i INPUT_PATH -o OUTPUT_PATH -f FILTER_SIZE -e`
 
 The `INPUT_PATH` is the path to your input data. The file format must be .csv. It should contain a "substrate_smiles" and a "metabolite_smiles" column containing the SMILES string of the substrate and metabolite, respectively, and a "substrate_id" column and "metabolite_id" column containing numerical identifiers of the substrate and metabolite, respectively. Any number and naming of additional column(s) is allowed. The ordering of columns is not important.
 
