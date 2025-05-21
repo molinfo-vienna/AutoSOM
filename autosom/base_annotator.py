@@ -166,21 +166,6 @@ class BaseAnnotator:
         for atom in self.metabolite.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())
 
-    def is_too_large_to_process(self) -> bool:
-        """Check if the substrate or metabolite is too large for further
-        processing."""
-        if (
-            self.substrate.GetNumHeavyAtoms() > self.filter_size
-            or self.metabolite.GetNumHeavyAtoms() > self.filter_size
-        ):
-            log(
-                self.logger_path,
-                "Substrate or metabolite too large for processing.",
-            )
-            self.reaction_type = "too many atoms"
-            return True
-        return False
-
     def log_and_return(self) -> tuple[list[int], str, float]:
         """Log annotation rule and return SOMs and annotation rule."""
         if self.reaction_type == "unknown":
@@ -190,6 +175,15 @@ class BaseAnnotator:
         return (
             sorted(self.soms),
             self.reaction_type,
+            (datetime.now() - self.time).total_seconds(),
+        )
+
+    def log_and_timeout(self) -> tuple[list[int], str, float]:
+        """Log annotation rule and return SOMs and annotation rule in case of timeout."""
+        log(self.logger_path, "Timeout occurred.")
+        return (
+            sorted(self.soms),
+            "timeout",
             (datetime.now() - self.time).total_seconds(),
         )
 

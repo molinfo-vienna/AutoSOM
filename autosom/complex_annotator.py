@@ -134,7 +134,7 @@ class ComplexAnnotator(BaseAnnotator):
             return True
         return False
 
-    def _correct_heterocyclic_ring_opening(self) -> bool:
+    def _correct_other_heterocyclic_ring_hydrolysis(self) -> bool:
         """Correct SoMs for ring-opening reactions."""
         if (
             self.metabolite.GetRingInfo().NumRings()
@@ -343,7 +343,7 @@ class ComplexAnnotator(BaseAnnotator):
         if self._correct_lactone_hydrolysis():
             return True
 
-        if self._correct_heterocyclic_ring_opening():
+        if self._correct_other_heterocyclic_ring_hydrolysis():
             return True
 
         if bool(self.soms):

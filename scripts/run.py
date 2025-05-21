@@ -16,10 +16,8 @@ Command-line arguments:
         The path to the input data.
     -o, --outputPath: str, required
         The path for the output data.
-    -f, --filter_size: int, optional, default=45
-        The maximum number of heavy atoms tolerated in both substrate and metabolite
-        prior to running redox matching or MCS matching.
-        The runtime can get very high for large molecules.
+    -t, --timeout: int, optional, default=20
+        The timeout for the SOM annotation in seconds.
     -e, --ester_hydrolysis: bool, optional
         Per default, SOMAN annotates ester hydrolyses with the same logic as dealkylation reactions.
         If the -e argument is set, the annotation of ester hydrolysis is consistent with MetaQSAR.
@@ -72,14 +70,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-f",
-        "--filter_size",
+        "-t",
+        "--timeout",
         type=int,
         required=False,
-        default=55,
-        help="The maximum number of heavy atoms tolerated in both substrate and metabolite \
-              prior to running redox matching or MCS matching.\
-              The runtime can get very high for large molecules.",
+        default=20,
+        help="The timeout for the SOM annotation in seconds.",
     )
 
     parser.add_argument(
@@ -109,7 +105,7 @@ if __name__ == "__main__":
     log(logger_path, f"Data set contains {len(data)} reactions.")
 
     # Predict SOMs
-    params = (logger_path, args.filter_size, args.ester_hydrolysis)
+    params = (logger_path, args.timeout, args.ester_hydrolysis)
     data[["soms", "annotation_rule", "time"]] = data.progress_apply(
         lambda x: annotate_soms(
             params,
