@@ -13,13 +13,9 @@ from .complex_annotator import ComplexAnnotator
 from .elimination_annotator import EliminationAnnotator
 
 
-class TimeoutError(Exception):
-    """Exception raised when a function times out."""
-    pass
-
-
 def with_timeout(seconds):
     """Decorator to handle function timeouts."""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -62,8 +58,8 @@ def annotate_soms(
         return annotator.log_and_return()
     if not annotator.check_atom_types():
         return annotator.log_and_return()
-    # if not annotator.standardize_molecules():
-    #     return annotator.log_and_return()
+    if not annotator.standardize_molecules():
+        return annotator.log_and_return()
 
     annotator.remove_hydrogens()
     annotator.initialize_atom_notes()
@@ -101,20 +97,6 @@ def annotate_soms(
             return annotator.log_and_timeout()
         if result:
             return elimination_annotator.log_and_return()
-
-    # # The next steps perform MCS matching
-    # # with a different set of parameters than was used
-    # # for addition and elimination reactions.
-    # # Specifically, MCS matching for complex reactions requires
-    # # comparing any types of bonds (rdFMCS.BondCompare.CompareAny)
-    # # instead of using heuristics to restrict the types
-    # # of bonds that can be matched to each other
-    # # (rdFMCS.BondCompare.CompareOrder).
-    # # This can be slow for larger molecules,
-    # # so we skip them if the substrate or metabolite
-    # # has too many heavy atoms (filter_size parameter).
-    # if annotator.is_too_large_to_process():
-    #     return annotator.log_and_return()
 
     handle_complex_with_timeout = with_timeout(timeout)(
         complex_annotator.handle_complex_reaction

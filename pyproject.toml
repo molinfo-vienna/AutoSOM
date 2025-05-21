@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "soman"
-version = "0.0.1"
+version = "1.1.0"
 description = "Annotates the Sites of Metabolism (SoMs) of substrate-metabolite pairs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +26,6 @@ dependencies = [
 dev = [
   "black",
   "isort",
-  "pylint",
   "pydocstyle",
 ]
 vis = [
@@ -36,22 +35,3 @@ vis = [
 
 [tool.isort]
 profile = "black"
-
-[tool.pylint.messages-control]
-disable = [
-  "c-extension-no-member",  # errors related to RDKit
-  "no-name-in-module",  # errors related to RDKit
-  "no-member",  # errors related to RDKit
-  "duplicate-code",
-  "too-many-return-statements",
-  "too-many-nested-blocks",
-  "too-many-instance-attributes",
-  "too-many-branches",
-  "line-too-long", # this is annoying for logging messages
-  "redefined-outer-name", # buggy for tests
-]
-
-[tool.pydocstyle]
-ignore = [
-  "D107",  # Missing docstring in __init__
-]

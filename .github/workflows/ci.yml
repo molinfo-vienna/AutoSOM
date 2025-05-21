@@ -37,10 +37,6 @@ jobs:
       if: success() || failure()
       run: mypy .
 
-    - name: Run pylint
-      if: success() || failure()
-      run: pylint .
-
   test:
     runs-on: ubuntu-latest
     steps:

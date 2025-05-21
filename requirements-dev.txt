@@ -2,6 +2,5 @@ black
 flake8
 isort
 mypy
-pylint
 pydocstyle
 pytest
