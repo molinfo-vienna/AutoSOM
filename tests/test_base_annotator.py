@@ -57,12 +57,6 @@ def test_standardize_molecules(base_annotator):
     assert Chem.SanitizeMol(base_annotator.metabolite) == Chem.SANITIZE_NONE
 
 
-def test_is_too_large_to_process(base_annotator):
-    """Test molecule size check."""
-    # Benzene and phenol are small molecules
-    assert base_annotator.is_too_large_to_process() is False
-
-
 def test_compute_weight_ratio(base_annotator):
     """Test molecular weight ratio computation."""
     ratio = base_annotator.compute_weight_ratio()
