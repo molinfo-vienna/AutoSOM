@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     # Output annotations
     data = (
-        data.dropna()
+        data.dropna(subset=["substrate_mol", "metabolite_mol"])
     )  # Drop rows with None values (invalid substrate or metabolite Mol objects)
     data["sdf_id"] = data["substrate_id"]
     PandasTools.WriteSDF(
