@@ -291,7 +291,7 @@ class AdditionAnnotator(BaseAnnotator):
 
             log(
                 self.logger_path,
-                "Susbtrate is a substructure of the metabolite.",
+                "Substrate is a substructure of the metabolite.",
             )
 
             if not self._general_case_addition():
