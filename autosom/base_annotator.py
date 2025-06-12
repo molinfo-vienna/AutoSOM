@@ -123,8 +123,8 @@ class BaseAnnotator:
         return True
 
     def check_validity(self) -> bool:
-        """Check if the substrate and metabolite are valid molecules (inchikey
-        can be computed)."""
+        """Check if the substrate and metabolite are valid molecules \
+            (inchikey can be computed)."""
         if self.substrate is None or self.metabolite is None:
             substrate_inchikey = None
             metabolite_inchikey = None
@@ -148,7 +148,7 @@ class BaseAnnotator:
         return True
 
     def compute_weight_ratio(self) -> int:
-        """Compute whether the substrate is lighter, heavier or equally heavy
+        """Compute whether the substrate is lighter, heavier or equally heavy \
         than the metabolite."""
         if self.substrate.GetNumHeavyAtoms() < self.metabolite.GetNumHeavyAtoms():
             log(self.logger_path, "Substrate lighter than metabolite.")
@@ -159,7 +159,7 @@ class BaseAnnotator:
         return 0
 
     def initialize_atom_notes(self) -> None:
-        """Initialize the atom note properties for the substrate and the
+        """Initialize the atom note properties for the substrate and the \
         metabolite."""
         for atom in self.substrate.GetAtoms():
             atom.SetIntProp("atomNote", atom.GetIdx())

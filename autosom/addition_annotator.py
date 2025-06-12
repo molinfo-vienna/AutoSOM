@@ -39,15 +39,14 @@ class AdditionAnnotator(BaseAnnotator):
         ]
 
     def _correct_carnitine_addition(self) -> bool:
-        """Correct SoMs for the addition of carnitine to a carboxylic acid.
-        The conjugation of carnitine to carboxylic acid is mediated by
-        the coenzyme A. Thus, the SOM here is not the SP3-hybridized oxygen
-        of the carboxylic acid, the carbon atom of the carboxylic acid.
-        Other amino acids undergo conjugation via CoA (glycine, cysteine, taurine etc.),
-        but they are not matched by the general addition scenario because in those cases,
-        the carboxylic acid reacts to an amide. These cases teherfore do not need to be
-        corrected by this pipeline, as they correctly handled later in the complex reaction pipeline.
-        """
+        """Correct SoMs for the addition of carnitine to a carboxylic acid. \
+        The conjugation of carnitine to carboxylic acid is mediated by \
+        the coenzyme A. Thus, the SOM here is not the SP3-hybridized oxygen \
+        of the carboxylic acid, the carbon atom of the carboxylic acid. \
+        Other amino acids undergo conjugation via CoA (glycine, cysteine, taurine etc.), \
+        but they are not matched by the general addition scenario because in those cases, \
+        the carboxylic acid reacts to an amide. These cases teherfore do not need to be \
+        corrected by this pipeline, as they correctly handled later in the complex reaction pipeline."""
         carnitine_pattern = MolFromSmarts("[N+](C)(C)(C)-C-C(O)C-C(=O)[O]")
 
         if (
@@ -71,11 +70,9 @@ class AdditionAnnotator(BaseAnnotator):
         """Find the sulfur atom index in the glutathione structure.
 
         Args:
-
             glutathione_indices (list): Indices of atoms in the glutathione moiety.
 
         Returns:
-
             int: Index of the sulfur atom, or None if not found.
         """
         return next(
@@ -93,12 +90,10 @@ class AdditionAnnotator(BaseAnnotator):
         """Find the index of the atom neighboring the sulfur atom.
 
         Args:
-
             s_index (int): Index of the sulfur atom.
             glutathione_indices (list): Indices of atoms in the glutathione moiety.
 
         Returns:
-
             int: Index of the atom neighboring the sulfur atom, or None if not found.
         """
         s_neighbors = [
@@ -110,16 +105,14 @@ class AdditionAnnotator(BaseAnnotator):
         )
 
     def _get_non_glutathione_fragment(self, s_index: int, som_index: int):
-        """Split the metabolite into fragments and identify the one without the
+        """Split the metabolite into fragments and identify the one without the \
         glutathione moiety.
 
         Args:
-
             s_index (int): Index of the sulfur atom.
             som_index (int): Index of the SoM atom.
 
         Returns:
-
             Mol: The fragment that does not contain the glutathione moiety, or None if not found.
         """
         bond_id = self.metabolite.GetBondBetweenAtoms(s_index, som_index).GetIdx()
@@ -182,12 +175,10 @@ class AdditionAnnotator(BaseAnnotator):
         """Map atoms between two molecules using MCS.
 
         Args:
-
             source_mol (Mol): The source molecule.
             target_mol (Mol): The target molecule.
 
         Returns:
-
             dict: A mapping between the atoms in the source
                   molecule and the atoms in the target molecule.
         """
@@ -208,7 +199,6 @@ class AdditionAnnotator(BaseAnnotator):
         """Annotate SoMs for glutathione conjugation.
 
         Returns:
-
             bool: True if annotation is successful, False otherwise.
         """
         try:

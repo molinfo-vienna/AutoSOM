@@ -37,6 +37,10 @@ jobs:
       if: success() || failure()
       run: mypy .
 
+    - name: Run pydocstyle
+      if: success() || failure()
+      run: pydocstyle .
+
   test:
     runs-on: ubuntu-latest
     steps:

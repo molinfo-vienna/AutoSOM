@@ -65,7 +65,6 @@ class EliminationAnnotator(BaseAnnotator):
         self, smarts, reaction_type
     ) -> bool:
         """Correct SoMs for phosphate or thiophosphate hydrolysis."""
-
         if not self.substrate.GetSubstructMatch(MolFromSmarts(smarts)):
             return False
 
@@ -111,8 +110,11 @@ class EliminationAnnotator(BaseAnnotator):
         return False
 
     def _correct_hydrolysis_of_esters_of_inorganic_acids_sulfur(self) -> bool:
-        """Correct SoMs for the hydrolysis of esters of sulfur-based inorganic.
-        E.g.: sulfamate, sulfonamide, sulfonate, sulfuric diamide etc."""
+        """
+        Correct SoMs for the hydrolysis of esters of sulfur-based inorganic.
+
+        E.g.: sulfamate, sulfonamide, sulfonate, sulfuric diamide etc.
+        """
         if len(self.soms) != 1:
             return False
 

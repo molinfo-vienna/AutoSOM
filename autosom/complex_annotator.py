@@ -24,10 +24,9 @@ class ComplexAnnotator(BaseAnnotator):
     time: datetime
 
     def _correct_epoxide(self) -> bool:
-        """Correct the SoMs for oxidative dehalogenation if the reaction
-        produces a stable epoxide instead of the typical alcohol
+        """Correct the SoMs for oxidative dehalogenation if the reaction \
+        produces a stable epoxide instead of the typical alcohol \
         resulting from the hydrolysis of the intermediate epoxide."""
-
         # Get the SOM atom in the metabolite
         som_atom_in_metabolite = self.metabolite.GetAtomWithIdx(
             self.mapping[self.soms[0]]
@@ -166,9 +165,8 @@ class ComplexAnnotator(BaseAnnotator):
         return False
 
     def _find_unmapped_halogen(self) -> Optional[Atom]:
-        """Find the halogen atom in the substrate that is not present in the
+        """Find the halogen atom in the substrate that is not present in the \
         mapping."""
-
         halogen_symbols = ["F", "Cl", "Br", "I"]
         for atom in self.substrate.GetAtoms():
             # self.mapping maps the atom indices in the metabolite to the
@@ -238,7 +236,7 @@ class ComplexAnnotator(BaseAnnotator):
     def handle_complex_reaction_subgraph_ismorphism_mapping(
         self,
     ) -> bool:
-        """Annotate SoMs for complex reactions using subgraph isomorphism
+        """Annotate SoMs for complex reactions using subgraph isomorphism \
         mapping."""
         mol_graph_substrate = mol_to_graph(self.substrate)
         mol_graph_metabolite = mol_to_graph(self.metabolite)
@@ -302,7 +300,7 @@ class ComplexAnnotator(BaseAnnotator):
     def handle_complex_reaction_maximum_common_subgraph_mapping(
         self,
     ) -> bool:
-        """Annotate SoMs for complex reactions using largest common subgraph
+        """Annotate SoMs for complex reactions using largest common subgraph \
         (maximum common substructure) mapping."""
         self._set_mcs_bond_typer_param(rdFMCS.BondCompare.CompareAny)
         mcs = rdFMCS.FindMCS([self.substrate, self.metabolite], self.mcs_params)
@@ -354,7 +352,6 @@ class ComplexAnnotator(BaseAnnotator):
 
     def handle_complex_reaction(self) -> bool:
         """Annotate SoMs for complex reactions."""
-
         # Handle oxidative dehalogenation
         if self._is_oxidative_dehalogenation():
             if self._handle_oxidative_dehalogenation():

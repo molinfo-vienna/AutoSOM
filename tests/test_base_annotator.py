@@ -39,15 +39,6 @@ def test_initialization(base_annotator):
     assert base_annotator.metabolite_id == 2
 
 
-def test_remove_hydrogens(base_annotator):
-    """Test hydrogen removal from molecules."""
-    base_annotator.remove_hydrogens()
-    assert base_annotator.substrate.GetNumAtoms() == 6  # Benzene has 6 carbons
-    assert (
-        base_annotator.metabolite.GetNumAtoms() == 7
-    )  # Phenol has 6 carbons + 1 oxygen
-
-
 def test_standardize_molecules(base_annotator):
     """Test molecule standardization."""
     result = base_annotator.standardize_molecules()

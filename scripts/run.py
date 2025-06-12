@@ -1,4 +1,4 @@
-"""Predicts Sites of Metabolism (SOMs) for unseen data. Uses pairs of molecular
+"""Predicts Sites of Metabolism (SOMs) for unseen data. Uses pairs of molecular \
 structures (substrate/metabolite) provided in SMILES format.
 
 The script performs the following steps:
@@ -121,8 +121,8 @@ if __name__ == "__main__":
     )
 
     # Output annotations
-    data = (
-        data.dropna(subset=["substrate_mol", "metabolite_mol"])
+    data = data.dropna(
+        subset=["substrate_mol", "metabolite_mol"]
     )  # Drop rows with None values (invalid substrate or metabolite Mol objects)
     data["sdf_id"] = data["substrate_id"]
     PandasTools.WriteSDF(

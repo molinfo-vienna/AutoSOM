@@ -61,3 +61,192 @@
 2025-03-17 12:12:27.131503 Lactone hydrolysis detected. Corrected SoMs.
 2025-03-17 12:12:27.133271 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
 2025-03-17 12:12:27.142498 Substrate lighter than metabolite.
+2025-06-12 12:21:02.479544 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.489042 Substrate lighter than metabolite.
+2025-06-12 12:21:02.490813 Attempting addition matching.
+2025-06-12 12:21:02.492469 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:02.494220 Addition (general) successful.
+2025-06-12 12:21:02.496540 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.504261 Substrate heavier than the metabolite.
+2025-06-12 12:21:02.505932 Attempting elimination matching.
+2025-06-12 12:21:02.507450 Metabolite is a substructure the substrate.
+2025-06-12 12:21:02.509132 Elimination (general - type 2) successful.
+2025-06-12 12:21:02.511341 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.519236 Substrate lighter than metabolite.
+2025-06-12 12:21:02.520920 Attempting addition matching.
+2025-06-12 12:21:02.522645 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:02.524311 No subgraph isomorphism mapping found.
+2025-06-12 12:21:02.525810 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:02.527492 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:02.529086 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:02.531384 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.532911 Invalid substrate.
+2025-06-12 12:21:02.534416 No reaction detected.
+2025-06-12 12:21:02.536507 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.544128 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:02.545991 Subgraph isomorphism mapping found!
+2025-06-12 12:21:02.547529 Substrate and metabolite have complete mapping.
+2025-06-12 12:21:02.549157 Complex (subgraph isomorphism mapping) successful.
+2025-06-12 12:21:02.551384 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.559017 Substrate lighter than metabolite.
+2025-06-12 12:21:02.560683 Attempting addition matching.
+2025-06-12 12:21:02.562307 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:02.563982 Addition (general) successful.
+2025-06-12 12:21:02.565538 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.573097 Substrate heavier than the metabolite.
+2025-06-12 12:21:02.574749 Attempting elimination matching.
+2025-06-12 12:21:02.576304 Metabolite is a substructure the substrate.
+2025-06-12 12:21:02.577979 Elimination (general - type 2) successful.
+2025-06-12 12:21:02.579526 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.587111 Substrate lighter than metabolite.
+2025-06-12 12:21:02.588753 Attempting addition matching.
+2025-06-12 12:21:02.590458 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:02.592117 No subgraph isomorphism mapping found.
+2025-06-12 12:21:02.593695 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:02.595401 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:02.596997 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:02.599233 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.606992 Substrate lighter than metabolite.
+2025-06-12 12:21:02.608671 Attempting addition matching.
+2025-06-12 12:21:02.610381 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:02.612117 Addition (general) successful.
+2025-06-12 12:21:02.613761 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.621406 Substrate heavier than the metabolite.
+2025-06-12 12:21:02.623074 Attempting elimination matching.
+2025-06-12 12:21:02.624641 Metabolite is a substructure the substrate.
+2025-06-12 12:21:02.626358 Elimination (general - type 2) successful.
+2025-06-12 12:21:02.627923 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:02.635456 Substrate lighter than metabolite.
+2025-06-12 12:21:02.637000 Attempting addition matching.
+2025-06-12 12:21:02.638613 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:02.640136 No subgraph isomorphism mapping found.
+2025-06-12 12:21:02.641699 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:02.643330 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:02.644833 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:02.687115 Substrate lighter than metabolite.
+2025-06-12 12:21:39.451412 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.460062 Substrate lighter than metabolite.
+2025-06-12 12:21:39.462083 Attempting addition matching.
+2025-06-12 12:21:39.463745 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:39.465456 Addition (general) successful.
+2025-06-12 12:21:39.467730 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.475405 Substrate heavier than the metabolite.
+2025-06-12 12:21:39.477145 Attempting elimination matching.
+2025-06-12 12:21:39.478807 Metabolite is a substructure the substrate.
+2025-06-12 12:21:39.480663 Elimination (general - type 2) successful.
+2025-06-12 12:21:39.482900 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.490530 Substrate lighter than metabolite.
+2025-06-12 12:21:39.492238 Attempting addition matching.
+2025-06-12 12:21:39.494108 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:39.495942 No subgraph isomorphism mapping found.
+2025-06-12 12:21:39.497582 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:39.499403 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:39.501080 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:39.503391 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.505000 Invalid substrate.
+2025-06-12 12:21:39.506588 No reaction detected.
+2025-06-12 12:21:39.508742 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.516481 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:39.518444 Subgraph isomorphism mapping found!
+2025-06-12 12:21:39.520043 Substrate and metabolite have complete mapping.
+2025-06-12 12:21:39.521684 Complex (subgraph isomorphism mapping) successful.
+2025-06-12 12:21:39.523864 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.531505 Substrate lighter than metabolite.
+2025-06-12 12:21:39.533199 Attempting addition matching.
+2025-06-12 12:21:39.534915 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:39.536692 Addition (general) successful.
+2025-06-12 12:21:39.538319 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.545951 Substrate heavier than the metabolite.
+2025-06-12 12:21:39.547683 Attempting elimination matching.
+2025-06-12 12:21:39.549317 Metabolite is a substructure the substrate.
+2025-06-12 12:21:39.551110 Elimination (general - type 2) successful.
+2025-06-12 12:21:39.552730 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.560419 Substrate lighter than metabolite.
+2025-06-12 12:21:39.562255 Attempting addition matching.
+2025-06-12 12:21:39.564253 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:39.566023 No subgraph isomorphism mapping found.
+2025-06-12 12:21:39.567658 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:39.569576 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:39.571267 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:39.573577 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.581423 Substrate lighter than metabolite.
+2025-06-12 12:21:39.583166 Attempting addition matching.
+2025-06-12 12:21:39.584806 Substrate is a substructure of the metabolite.
+2025-06-12 12:21:39.586532 Addition (general) successful.
+2025-06-12 12:21:39.588184 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.595709 Substrate heavier than the metabolite.
+2025-06-12 12:21:39.597409 Attempting elimination matching.
+2025-06-12 12:21:39.599060 Metabolite is a substructure the substrate.
+2025-06-12 12:21:39.600837 Elimination (general - type 2) successful.
+2025-06-12 12:21:39.602441 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:21:39.610058 Substrate lighter than metabolite.
+2025-06-12 12:21:39.611742 Attempting addition matching.
+2025-06-12 12:21:39.613565 Attempting subgraph isomorphism mapping.
+2025-06-12 12:21:39.615280 No subgraph isomorphism mapping found.
+2025-06-12 12:21:39.616869 Attempting maximum common subgraph mapping.
+2025-06-12 12:21:39.618622 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:21:39.620294 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:21:39.629259 Substrate lighter than metabolite.
+2025-06-12 12:22:31.904230 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.914845 Substrate lighter than metabolite.
+2025-06-12 12:22:31.916586 Attempting addition matching.
+2025-06-12 12:22:31.918240 Substrate is a substructure of the metabolite.
+2025-06-12 12:22:31.920018 Addition (general) successful.
+2025-06-12 12:22:31.922463 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.930153 Substrate heavier than the metabolite.
+2025-06-12 12:22:31.931690 Attempting elimination matching.
+2025-06-12 12:22:31.933188 Metabolite is a substructure the substrate.
+2025-06-12 12:22:31.934811 Elimination (general - type 2) successful.
+2025-06-12 12:22:31.936895 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.945491 Substrate lighter than metabolite.
+2025-06-12 12:22:31.947241 Attempting addition matching.
+2025-06-12 12:22:31.949063 Attempting subgraph isomorphism mapping.
+2025-06-12 12:22:31.950807 No subgraph isomorphism mapping found.
+2025-06-12 12:22:31.952478 Attempting maximum common subgraph mapping.
+2025-06-12 12:22:31.954117 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:22:31.955611 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:22:31.957916 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.959326 Invalid substrate.
+2025-06-12 12:22:31.960728 No reaction detected.
+2025-06-12 12:22:31.962725 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.970656 Attempting subgraph isomorphism mapping.
+2025-06-12 12:22:31.972638 Subgraph isomorphism mapping found!
+2025-06-12 12:22:31.974282 Substrate and metabolite have complete mapping.
+2025-06-12 12:22:31.975930 Complex (subgraph isomorphism mapping) successful.
+2025-06-12 12:22:31.978188 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:31.986186 Substrate lighter than metabolite.
+2025-06-12 12:22:31.987921 Attempting addition matching.
+2025-06-12 12:22:31.989608 Substrate is a substructure of the metabolite.
+2025-06-12 12:22:31.991407 Addition (general) successful.
+2025-06-12 12:22:31.993031 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:32.000726 Substrate heavier than the metabolite.
+2025-06-12 12:22:32.002566 Attempting elimination matching.
+2025-06-12 12:22:32.004255 Metabolite is a substructure the substrate.
+2025-06-12 12:22:32.006159 Elimination (general - type 2) successful.
+2025-06-12 12:22:32.007781 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:32.015459 Substrate lighter than metabolite.
+2025-06-12 12:22:32.017228 Attempting addition matching.
+2025-06-12 12:22:32.019140 Attempting subgraph isomorphism mapping.
+2025-06-12 12:22:32.020880 No subgraph isomorphism mapping found.
+2025-06-12 12:22:32.022543 Attempting maximum common subgraph mapping.
+2025-06-12 12:22:32.024388 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:22:32.026133 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:22:32.028497 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:32.036373 Substrate lighter than metabolite.
+2025-06-12 12:22:32.038114 Attempting addition matching.
+2025-06-12 12:22:32.039850 Substrate is a substructure of the metabolite.
+2025-06-12 12:22:32.041653 Addition (general) successful.
+2025-06-12 12:22:32.043304 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:32.050920 Substrate heavier than the metabolite.
+2025-06-12 12:22:32.052601 Attempting elimination matching.
+2025-06-12 12:22:32.054257 Metabolite is a substructure the substrate.
+2025-06-12 12:22:32.056056 Elimination (general - type 2) successful.
+2025-06-12 12:22:32.057640 Substrate ID: 1, Metabolite ID: 2
+2025-06-12 12:22:32.065168 Substrate lighter than metabolite.
+2025-06-12 12:22:32.066894 Attempting addition matching.
+2025-06-12 12:22:32.068751 Attempting subgraph isomorphism mapping.
+2025-06-12 12:22:32.070486 No subgraph isomorphism mapping found.
+2025-06-12 12:22:32.072087 Attempting maximum common subgraph mapping.
+2025-06-12 12:22:32.073867 Lactone hydrolysis detected. Corrected SoMs.
+2025-06-12 12:22:32.075433 Complex (maximum common subgraph mapping - lactone hydrolysis) successful.
+2025-06-12 12:22:32.084442 Substrate lighter than metabolite.

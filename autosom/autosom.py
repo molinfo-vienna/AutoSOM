@@ -1,4 +1,4 @@
-"""Contains pilot function for SOM annotation"""
+"""Contains pilot function for SOM annotation."""
 
 import threading
 from datetime import datetime
@@ -14,7 +14,7 @@ from .elimination_annotator import EliminationAnnotator
 
 
 def with_timeout(seconds):
-    """Decorator to handle function timeouts."""
+    """Decorate functions to handle timeouts."""
 
     def decorator(func):
         @wraps(func)
