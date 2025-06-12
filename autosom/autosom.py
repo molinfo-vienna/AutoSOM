@@ -49,6 +49,8 @@ def annotate_soms(
     metabolite_data: Tuple[Mol, int],
 ) -> Tuple[List[int], str, float]:
     """Annotates SoMs for a given substrate-metabolite pair."""
+    timeout = params[1]
+
     annotator = BaseAnnotator(params, substrate_data, metabolite_data)
     annotator.time = datetime.now()
 
@@ -61,7 +63,6 @@ def annotate_soms(
     if not annotator.standardize_molecules():
         return annotator.log_and_return()
 
-    annotator.remove_hydrogens()
     annotator.initialize_atom_notes()
 
     addition_annotator = AdditionAnnotator(params, substrate_data, metabolite_data)
@@ -75,8 +76,6 @@ def annotate_soms(
     elimination_annotator.time = datetime.now()
 
     weight_ratio = annotator.compute_weight_ratio()
-
-    timeout = params[1]
 
     if weight_ratio == 1:
         handle_addition_with_timeout = with_timeout(timeout)(

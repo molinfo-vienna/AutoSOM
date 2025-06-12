@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Tuple
 
 from chembl_structure_pipeline import standardizer
-from rdkit.Chem import Mol, MolToInchiKey, RemoveAllHs, SanitizeMol, rdFMCS
+from rdkit.Chem import Mol, MolToInchiKey, SanitizeMol, rdFMCS
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from .utils import log
@@ -194,16 +194,15 @@ class BaseAnnotator:
             f"Substrate ID: {self.substrate_id}, Metabolite ID: {self.metabolite_id}",
         )
 
-    def remove_hydrogens(self) -> None:
-        """Remove hydrogens from the substrate and metabolite."""
-        self.substrate = RemoveAllHs(self.substrate)
-        self.metabolite = RemoveAllHs(self.metabolite)
-
     def standardize_molecules(self) -> bool:
         """Standardize the substrate and metabolite."""
         # Get main fragment (remove counterions, solvents, etc.)
         self.substrate = standardizer.get_parent_mol(self.substrate)[0]
         self.metabolite = standardizer.get_parent_mol(self.metabolite)[0]
+
+        # Standardize the molecules
+        self.substrate = standardizer.standardize_mol(self.substrate)
+        self.metabolite = standardizer.standardize_mol(self.metabolite)
 
         # Get canonical tautomers
         self.substrate = rdMolStandardize.CanonicalTautomer(self.substrate)
