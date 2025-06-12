@@ -1,7 +1,5 @@
 .vscode/
 .mypy_cache/
+.pytest_cache/
 __pycache__/
-data/
-output/
-dev/
-*.sh
+dist/
