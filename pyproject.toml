@@ -3,7 +3,7 @@ requires = ["hatchling<=1.18.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "soman"
+name = "autosom"
 version = "1.1.1"
 description = "Annotates the Sites of Metabolism (SOMs) of substrate-metabolite pairs."
 readme = "README.md"
@@ -14,7 +14,7 @@ authors = [
 ]
 
 dependencies = [
-  "chembl_structure_pipeline>=1.2.2",
+  "chembl-structure-pipeline>=1.2.2",
   "networkx>=3.3",
   "numpy>=2.0.0",
   "pandas>=2.2.3",
