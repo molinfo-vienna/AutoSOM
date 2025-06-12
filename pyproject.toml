@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "soman"
 version = "1.1.1"
-description = "Annotates the Sites of Metabolism (SoMs) of substrate-metabolite pairs."
+description = "Annotates the Sites of Metabolism (SOMs) of substrate-metabolite pairs."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT License"}
