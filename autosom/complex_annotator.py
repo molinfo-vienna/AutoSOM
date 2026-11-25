@@ -226,7 +226,7 @@ class ComplexAnnotator(BaseAnnotator):
                     return True
 
             return True
-        except (ValueError, KeyError, AttributeError) as e:
+        except (ValueError, KeyError, AttributeError, IndexError) as e:
             log(
                 self.logger_path,
                 f"Halogen to hydroxy matching failed. Error: {e}",
